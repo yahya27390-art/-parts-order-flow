@@ -1,0 +1,61 @@
+{
+  "name": "PurchaseOrderItem",
+  "type": "object",
+  "properties": {
+    "order_id": {
+      "type": "string",
+      "description": "\u0645\u0639\u0631\u0641 \u0637\u0644\u0628 \u0627\u0644\u0634\u0631\u0627\u0621"
+    },
+    "item_id": {
+      "type": "string",
+      "description": "\u0645\u0639\u0631\u0641 \u0627\u0644\u0635\u0646\u0641"
+    },
+    "item_number": {
+      "type": "string",
+      "description": "\u0631\u0642\u0645 \u0627\u0644\u0635\u0646\u0641"
+    },
+    "item_name": {
+      "type": "string",
+      "description": "\u0627\u0633\u0645 \u0627\u0644\u0635\u0646\u0641"
+    },
+    "quantity_ordered": {
+      "type": "number",
+      "description": "\u0627\u0644\u0643\u0645\u064a\u0629 \u0627\u0644\u0645\u0637\u0644\u0648\u0628\u0629"
+    },
+    "quantity_received": {
+      "type": "number",
+      "default": 0,
+      "description": "\u0627\u0644\u0643\u0645\u064a\u0629 \u0627\u0644\u0645\u0633\u062a\u0644\u0645\u0629"
+    },
+    "unit_cost": {
+      "type": "number",
+      "description": "\u062a\u0643\u0644\u0641\u0629 \u0627\u0644\u0648\u062d\u062f\u0629"
+    },
+    "total_cost": {
+      "type": "number",
+      "description": "\u0627\u0644\u062a\u0643\u0644\u0641\u0629 \u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a\u0629"
+    }
+  },
+  "required": [
+    "order_id",
+    "item_id",
+    "quantity_ordered"
+  ],
+  "rls": {
+    "create": {
+      "created_by": "{{user.email}}"
+    },
+    "read": {
+      "created_by": "{{user.email}}"
+    },
+    "update": {
+      "created_by": "{{user.email}}"
+    },
+    "delete": {
+      "created_by": "{{user.email}}"
+    },
+    "write": {
+      "created_by": "{{user.email}}"
+    }
+  }
+}

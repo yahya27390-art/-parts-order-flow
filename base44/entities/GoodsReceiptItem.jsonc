@@ -1,0 +1,73 @@
+{
+  "name": "GoodsReceiptItem",
+  "type": "object",
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "description": "\u0645\u0639\u0631\u0641 \u0625\u0630\u0646 \u0627\u0644\u0627\u0633\u062a\u0644\u0627\u0645"
+    },
+    "order_item_id": {
+      "type": "string",
+      "description": "\u0645\u0639\u0631\u0641 \u0635\u0646\u0641 \u0627\u0644\u0637\u0644\u0628"
+    },
+    "item_id": {
+      "type": "string",
+      "description": "\u0645\u0639\u0631\u0641 \u0627\u0644\u0635\u0646\u0641"
+    },
+    "item_number": {
+      "type": "string",
+      "description": "\u0631\u0642\u0645 \u0627\u0644\u0635\u0646\u0641"
+    },
+    "item_name": {
+      "type": "string",
+      "description": "\u0627\u0633\u0645 \u0627\u0644\u0635\u0646\u0641"
+    },
+    "quantity_received": {
+      "type": "number",
+      "description": "\u0627\u0644\u0643\u0645\u064a\u0629 \u0627\u0644\u0645\u0633\u062a\u0644\u0645\u0629"
+    },
+    "unit_cost": {
+      "type": "number",
+      "description": "\u062a\u0643\u0644\u0641\u0629 \u0627\u0644\u0648\u062d\u062f\u0629"
+    },
+    "total_cost": {
+      "type": "number",
+      "description": "\u0627\u0644\u062a\u0643\u0644\u0641\u0629 \u0627\u0644\u0625\u062c\u0645\u0627\u0644\u064a\u0629"
+    }
+  },
+  "required": [
+    "receipt_id",
+    "item_id",
+    "quantity_received"
+  ],
+  "rls": {
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "read": null,
+    "update": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
