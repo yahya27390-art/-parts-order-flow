@@ -134,55 +134,106 @@ export default function PurchaseOrderDetails() {
 
           .print-header {
             display: block !important;
+            position: relative;
+            overflow: hidden;
             border: 1px solid #cbd5e1;
-            border-top: 5px solid #1e3a5f;
-            border-radius: 8px;
-            padding: 14px 16px 12px;
-            margin-bottom: 14px;
+            border-bottom: 4px solid #d4a853;
+            border-radius: 0 0 10px 10px;
+            padding: 0;
+            margin-bottom: 18px;
             background: #fff;
           }
 
           .print-brand-row {
+            position: relative;
             display: flex !important;
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid #dbe3ee;
+            min-height: 92px;
+            padding: 16px 18px 20px;
+            color: white;
+            background: #1e3a5f;
+            border-bottom: 0;
+            overflow: hidden;
+          }
+
+          .print-brand-row::after {
+            content: "";
+            position: absolute;
+            left: 24%;
+            right: -5%;
+            bottom: -1px;
+            height: 24px;
+            background: #fff;
+            clip-path: polygon(7% 100%, 100% 0, 100% 100%);
+          }
+
+          .print-brand-row::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 30%;
+            height: 4px;
+            background: #d4a853;
+            z-index: 1;
           }
 
           .print-brand {
             display: flex !important;
             align-items: center;
             gap: 12px;
+            position: relative;
+            z-index: 2;
           }
 
           .print-brand img {
-            width: 58px;
-            height: 58px;
+            width: 62px;
+            height: 62px;
             object-fit: contain;
+            padding: 5px;
+            background: #fff;
+            border-radius: 4px;
           }
 
           .print-brand-name {
-            color: #1e3a5f;
-            font-size: 17px;
+            color: #fff;
+            font-size: 18px;
             font-weight: 800;
           }
 
           .print-brand-subtitle {
-            color: #64748b;
+            color: #dbe5f1;
             font-size: 9px;
+            margin-top: 3px;
+          }
+
+          .print-brand-row > .text-left {
+            position: relative;
+            z-index: 2;
+            min-width: 92px;
+            padding-right: 12px;
+            border-right: 1px solid rgba(255,255,255,0.35);
+            color: #dbe5f1 !important;
+          }
+
+          .print-brand-row > .text-left strong {
+            color: #fff !important;
+            display: block;
             margin-top: 3px;
           }
 
           .print-document-title {
             text-align: center;
-            margin-top: 12px;
+            margin: 0;
+            padding: 12px 16px 8px;
+            background: #fff;
           }
 
           .print-document-title h2 {
             color: #1e3a5f;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 800;
             margin: 0;
           }
@@ -190,16 +241,20 @@ export default function PurchaseOrderDetails() {
           .print-document-title p {
             color: #64748b;
             font-size: 10px;
-            margin: 4px 0 0;
+            margin: 3px 0 0;
           }
 
           .print-document-meta {
             display: flex !important;
-            justify-content: center;
-            gap: 28px;
-            margin-top: 10px;
+            justify-content: space-around;
+            gap: 18px;
+            margin: 0 14px 12px;
+            padding: 8px 10px;
             color: #475569;
             font-size: 10px;
+            border: 1px solid #dbe3ee;
+            border-radius: 4px;
+            background: #f8fafc;
           }
 
           .print-document-meta strong {
@@ -236,7 +291,9 @@ export default function PurchaseOrderDetails() {
           }
 
           .print-card [data-slot="card-header"] {
-            padding: 8px 12px !important;
+            position: relative;
+            padding: 8px 12px 8px 18px !important;
+            border-right: 4px solid #d4a853;
           }
 
           .print-card [data-slot="card-content"] {
@@ -287,10 +344,13 @@ export default function PurchaseOrderDetails() {
             display: flex !important;
             justify-content: space-between;
             margin-top: 24px;
-            padding-top: 10px;
-            border-top: 1px solid #cbd5e1;
-            color: #64748b;
+            padding: 10px 12px;
+            border-top: 4px solid #d4a853;
+            color: #e7eef7;
             font-size: 10px;
+            background: #1e3a5f;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
           }
         }
       `}</style>
