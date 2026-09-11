@@ -72,7 +72,26 @@ const createEntity = (entityName) => {
 
 export const db = {
   entities: Object.fromEntries(Object.keys(tables).map((name) => [name, createEntity(name)])),
-  auth: supabase?.auth,
+  auth: supabase
+    ? {
+      async me() {
+        const { data, error } = await supabase.auth.getUser();
+        if (error) throw error;
+        if (!data.user) throw new Error('No authenticated user.');
+
+        return {
+          id: data.user.id,
+          email: data.user.email,
+          full_name: data.user.user_metadata?.full_name || data.user.email,
+          role: data.user.user_metadata?.role || 'admin'
+        };
+      },
+      async logout() {
+        const { error } = await supabase.auth.signOut();
+        mapError(error);
+      }
+    }
+    : undefined,
   storage: {
     async uploadLogo(file) {
       if (!supabase) throw new Error('Supabase configuration is missing.');
