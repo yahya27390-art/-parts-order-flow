@@ -1,4 +1,6 @@
-**Welcome to your Base44 project** 
+**Parts Order Flow**
+
+This project is an independent React application backed by Supabase PostgreSQL.
 
 **About**
 
