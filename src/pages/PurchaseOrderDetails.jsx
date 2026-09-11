@@ -283,15 +283,47 @@ export default function PurchaseOrderDetails() {
             padding: 12px !important;
           }
 
+          .print-order-summary [data-slot="card-content"] {
+            padding: 7px 10px !important;
+          }
+
           .print-info-grid {
             display: grid !important;
             grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 10px 18px !important;
+            gap: 3px 16px !important;
           }
 
-          .print-info-grid > div {
+          .print-order-summary .print-info-grid > div {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            min-height: 21px;
             border-bottom: 1px solid #e2e8f0;
-            padding-bottom: 7px;
+            padding: 1px 0 2px;
+          }
+
+          .print-order-summary .print-info-grid p {
+            margin: 0;
+            font-size: 8px;
+          }
+
+          .print-order-summary .print-info-grid p.mt-1 {
+            margin-top: 0 !important;
+            font-size: 9px;
+          }
+
+          .print-order-summary .print-info-grid p.text-lg {
+            font-size: 11px;
+          }
+
+          .print-order-summary .mt-6 {
+            margin-top: 5px !important;
+            padding-top: 5px !important;
+          }
+
+          .print-order-summary .mt-6 p {
+            font-size: 8px;
+            margin: 0;
           }
 
           .print-table {
@@ -416,7 +448,7 @@ export default function PurchaseOrderDetails() {
         </div>
 
         {/* Order Info */}
-      <Card className="border-0 shadow-sm print-card print-items-card">
+      <Card className="border-0 shadow-sm print-card print-order-summary">
         <CardContent className="p-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 print-info-grid">
             <div>
