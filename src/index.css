@@ -83,6 +83,69 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: "Tajawal", "Segoe UI", Tahoma, sans-serif;
+    background: #f4f7fb;
+  }
+
+  ::selection {
+    background: #d4a853;
+    color: #152a45;
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+@layer components {
+  .app-sidebar {
+    background: linear-gradient(180deg, #173253 0%, #102640 100%);
+    color: #fff;
+  }
+
+  .app-sidebar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.35;
+    background: radial-gradient(circle at 15% 8%, rgba(212, 168, 83, 0.18), transparent 28%);
+  }
+
+  .app-sidebar > div {
+    position: relative;
+    z-index: 1;
+  }
+
+  .brand-mark {
+    background: linear-gradient(135deg, #e5bd69, #c79236);
+    box-shadow: 0 8px 20px rgba(212, 168, 83, 0.22);
+  }
+
+  .app-main {
+    background:
+      radial-gradient(circle at 10% 0%, rgba(212, 168, 83, 0.08), transparent 25rem),
+      #f4f7fb;
+  }
+
+  .app-content {
+    width: 100%;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
+
+  .app-main .rounded-2xl {
+    border-radius: 1rem;
+  }
+
+  @media (max-width: 1023px) {
+    .app-main {
+      padding-bottom: 2rem;
+    }
   }
 }

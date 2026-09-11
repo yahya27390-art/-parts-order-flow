@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { db as base44 } from '@/api/databaseClient';
+import { db } from '@/api/databaseClient';
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -33,7 +33,7 @@ export default function Layout({ children, currentPageName }) {
 
   const loadSettings = async () => {
     try {
-      const settingsList = await base44.entities.SystemSettings.list();
+      const settingsList = await db.entities.SystemSettings.list();
       if (settingsList.length > 0) {
         setSettings(settingsList[0]);
       }
@@ -44,7 +44,7 @@ export default function Layout({ children, currentPageName }) {
 
   const loadUser = async () => {
     try {
-      const currentUser = await base44.auth.me();
+      const currentUser = await db.auth.me();
       setUser(currentUser);
     } catch (e) {
       console.log('User not logged in');
@@ -52,7 +52,7 @@ export default function Layout({ children, currentPageName }) {
   };
 
   const handleLogout = () => {
-    base44.auth.logout();
+    db.auth.logout();
   };
 
   const navigationGroups = [
@@ -103,28 +103,6 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-100">
-      <style>{`
-        :root {
-          --navy: #1e3a5f;
-          --navy-dark: #152a45;
-          --navy-light: #2d4a6f;
-          --gold: #d4a853;
-          --gold-light: #e6c17a;
-          --gold-dark: #b8923f;
-        }
-        * {
-          font-family: 'Tajawal', 'Inter', sans-serif;
-        }
-        .bg-navy { background-color: var(--navy); }
-        .bg-navy-dark { background-color: var(--navy-dark); }
-        .bg-navy-light { background-color: var(--navy-light); }
-        .text-navy { color: var(--navy); }
-        .text-gold { color: var(--gold); }
-        .bg-gold { background-color: var(--gold); }
-        .border-gold { border-color: var(--gold); }
-        .hover\\:bg-navy-light:hover { background-color: var(--navy-light); }
-      `}</style>
-      
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
@@ -135,9 +113,9 @@ export default function Layout({ children, currentPageName }) {
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed top-0 right-0 z-50 h-full w-72 bg-navy-dark shadow-xl transition-transform duration-300 lg:translate-x-0",
+        "app-sidebar fixed top-0 right-0 z-50 h-full w-72 shadow-xl transition-transform duration-300 lg:translate-x-0",
         sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
-      )} style={{ backgroundColor: '#152a45' }}>
+      )}>
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="flex items-center justify-between p-6 border-b border-white/10">
@@ -145,7 +123,7 @@ export default function Layout({ children, currentPageName }) {
               {settings?.logo_url && settings?.show_logo_interface ? (
                 <img src={settings.logo_url} alt="Logo" className="h-10 w-10 object-contain" />
               ) : (
-                <div className="h-10 w-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: '#d4a853' }}>
+                <div className="brand-mark h-10 w-10 rounded-xl flex items-center justify-center">
                   <Package className="h-5 w-5 text-white" />
                 </div>
               )}
@@ -218,7 +196,7 @@ export default function Layout({ children, currentPageName }) {
           {user && (
             <div className="p-4 border-t border-white/10">
               <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
-                <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ backgroundColor: '#d4a853' }}>
+                <div className="brand-mark h-10 w-10 rounded-full flex items-center justify-center">
                   <User className="h-5 w-5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -260,8 +238,21 @@ export default function Layout({ children, currentPageName }) {
         </header>
 
         {/* Page content */}
-        <main className="p-4 lg:p-8 bg-slate-100 min-h-screen">
-          {children}
+        <main className="app-main p-4 sm:p-6 lg:p-8 min-h-screen">
+          <div className="app-content">
+            <div className="hidden lg:flex items-center justify-between mb-7">
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">إدارة المخزون</p>
+                <p className="mt-1 text-sm font-medium text-slate-500">
+                  {navigationGroups.flatMap((group) => group.items).find((item) => item.page === currentPageName)?.name || 'لوحة التحكم'}
+                </p>
+              </div>
+              <div className="text-xs text-slate-400">
+                {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'full' }).format(new Date())}
+              </div>
+            </div>
+            {children}
+          </div>
         </main>
       </div>
 
