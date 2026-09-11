@@ -149,6 +149,27 @@ export default function PurchaseOrderDetails() {
             margin-bottom: 14px;
           }
 
+          .print-items-card {
+            break-inside: auto;
+          }
+
+          .print-items-card .print-table {
+            break-inside: auto;
+          }
+
+          .print-items-card .print-table thead {
+            display: table-header-group;
+          }
+
+          .print-items-card .print-table tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          .print-receipts-card {
+            break-inside: auto;
+          }
+
           .print-card [data-slot="card-header"] {
             padding: 8px 12px !important;
           }
@@ -278,7 +299,7 @@ export default function PurchaseOrderDetails() {
         </div>
 
         {/* Order Info */}
-      <Card className="border-0 shadow-sm print-card">
+      <Card className="border-0 shadow-sm print-card print-items-card">
         <CardContent className="p-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 print-info-grid">
             <div>
@@ -308,7 +329,7 @@ export default function PurchaseOrderDetails() {
       </Card>
 
       {/* Order Items */}
-      <Card className="border-0 shadow-sm print-card">
+      <Card className="border-0 shadow-sm print-card print-receipts-card">
         <CardHeader className="border-b" style={{ backgroundColor: '#1e3a5f' }}>
           <CardTitle className="text-lg text-white">أصناف الطلب</CardTitle>
         </CardHeader>
