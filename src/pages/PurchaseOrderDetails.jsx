@@ -22,6 +22,7 @@ export default function PurchaseOrderDetails() {
   const [order, setOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
   const [receipts, setReceipts] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -35,15 +36,17 @@ export default function PurchaseOrderDetails() {
 
   const loadOrderDetails = async () => {
     try {
-      const [orderData, itemsData, receiptsData] = await Promise.all([
+      const [orderData, itemsData, receiptsData, settingsData] = await Promise.all([
         base44.entities.PurchaseOrder.filter({ id: orderId }),
         base44.entities.PurchaseOrderItem.filter({ order_id: orderId }),
-        base44.entities.GoodsReceipt.filter({ order_id: orderId })
+        base44.entities.GoodsReceipt.filter({ order_id: orderId }),
+        base44.entities.SystemSettings.list()
       ]);
 
       setOrder(orderData[0]);
       setOrderItems(itemsData);
       setReceipts(receiptsData);
+      setSettings(settingsData[0] || null);
     } catch (error) {
       console.error('Error loading order:', error);
     } finally {
@@ -94,10 +97,82 @@ export default function PurchaseOrderDetails() {
     );
   }
 
+  const handlePrint = () => window.print();
+
   return (
     <div className="space-y-6">
+      <style>{`
+        @media print {
+          @page {
+            size: A4 landscape;
+            margin: 12mm;
+          }
+
+          body * {
+            visibility: hidden;
+          }
+
+          .print-area,
+          .print-area * {
+            visibility: visible;
+          }
+
+          .print-area {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            padding: 0;
+            background: white;
+          }
+
+          .no-print {
+            display: none !important;
+          }
+
+          .print-header {
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 3px double #1e3a5f;
+            padding-bottom: 14px;
+            margin-bottom: 16px;
+          }
+
+          .print-card {
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 6px !important;
+            box-shadow: none !important;
+            break-inside: avoid;
+          }
+
+          .print-table {
+            width: 100%;
+            border-collapse: collapse;
+          }
+
+          .print-table th {
+            background: #1e3a5f !important;
+            color: white !important;
+            padding: 8px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
+          .print-table td {
+            padding: 7px 8px;
+            border-bottom: 1px solid #e2e8f0;
+          }
+
+          .print-table tr:nth-child(even) {
+            background: #f8fafc;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+        }
+      `}</style>
+
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 no-print">
         <div className="flex items-center gap-4">
           <Button
             variant="ghost"
@@ -116,7 +191,7 @@ export default function PurchaseOrderDetails() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => window.print()}>
+          <Button variant="outline" onClick={handlePrint}>
             <Printer className="h-4 w-4 ml-2" />
             طباعة
           </Button>
@@ -141,8 +216,31 @@ export default function PurchaseOrderDetails() {
         </div>
       </div>
 
-      {/* Order Info */}
-      <Card className="border-0 shadow-sm">
+      <div className="print-area" dir="rtl">
+        <div className="print-header hidden">
+          <div className="flex items-center gap-4">
+            {settings?.logo_url && settings?.show_logo_print && (
+              <img
+                src={settings.logo_url}
+                alt="شعار النظام"
+                className="h-20 w-20 object-contain"
+              />
+            )}
+            <div>
+              <h1 className="text-2xl font-bold" style={{ color: '#1e3a5f' }}>
+                {settings?.system_name || 'نظام إدارة المخزون'}
+              </h1>
+              <p className="text-slate-500 mt-1">تقرير طلب شراء</p>
+            </div>
+          </div>
+          <div className="text-left">
+            <p className="text-sm text-slate-500">تاريخ الطباعة</p>
+            <p className="font-medium">{new Date().toLocaleDateString('ar-SA')}</p>
+          </div>
+        </div>
+
+        {/* Order Info */}
+      <Card className="border-0 shadow-sm print-card">
         <CardContent className="p-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div>
@@ -172,13 +270,13 @@ export default function PurchaseOrderDetails() {
       </Card>
 
       {/* Order Items */}
-      <Card className="border-0 shadow-sm">
+      <Card className="border-0 shadow-sm print-card">
         <CardHeader className="border-b" style={{ backgroundColor: '#1e3a5f' }}>
           <CardTitle className="text-lg text-white">أصناف الطلب</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="print-table">
               <TableHeader>
                 <TableRow className="bg-slate-50">
                   <TableHead className="text-right">رقم الصنف</TableHead>
@@ -217,7 +315,7 @@ export default function PurchaseOrderDetails() {
 
       {/* Receipts History */}
       {receipts.length > 0 && (
-        <Card className="border-0 shadow-sm">
+        <Card className="border-0 shadow-sm print-card">
           <CardHeader className="border-b" style={{ backgroundColor: '#1e3a5f' }}>
             <CardTitle className="text-lg text-white">سجل الاستلامات</CardTitle>
           </CardHeader>
@@ -245,6 +343,7 @@ export default function PurchaseOrderDetails() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }
