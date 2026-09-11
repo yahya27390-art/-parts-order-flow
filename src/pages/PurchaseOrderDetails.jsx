@@ -105,7 +105,7 @@ export default function PurchaseOrderDetails() {
         @media print {
           @page {
             size: A4 portrait;
-            margin: 14mm 12mm;
+            margin: 11mm 10mm 13mm;
           }
 
           body * {
@@ -125,7 +125,8 @@ export default function PurchaseOrderDetails() {
             padding: 0;
             background: white;
             color: #172033;
-            font-size: 11px;
+            font-size: 10px;
+            line-height: 1.35;
           }
 
           .no-print {
@@ -137,11 +138,10 @@ export default function PurchaseOrderDetails() {
             position: relative;
             overflow: hidden;
             border: 1px solid #cbd5e1;
-            border-top: 2px solid #1e3a5f;
-            border-bottom: 1px solid #d4a853;
-            border-radius: 5px;
+            border-top: 5px solid #1e3a5f;
+            border-radius: 3px;
             padding: 0;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             background: #fff;
           }
 
@@ -151,12 +151,12 @@ export default function PurchaseOrderDetails() {
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            min-height: 38px;
-            height: 38px;
-            padding: 4px 8px;
+            min-height: 54px;
+            height: 54px;
+            padding: 7px 12px;
             color: #172033;
             background: #fff;
-            border-bottom: 0;
+            border-bottom: 3px solid #d4a853;
             overflow: hidden;
           }
 
@@ -171,7 +171,7 @@ export default function PurchaseOrderDetails() {
             top: 50%;
             transform: translate(-50%, -50%);
             color: #1e3a5f;
-            font-size: 12px;
+            font-size: 15px;
             font-weight: 800;
             white-space: nowrap;
           }
@@ -179,38 +179,38 @@ export default function PurchaseOrderDetails() {
           .print-brand {
             display: flex !important;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
             position: relative;
             z-index: 1;
           }
 
           .print-brand img {
-            width: 28px;
-            height: 28px;
+            width: 36px;
+            height: 36px;
             object-fit: contain;
             padding: 0;
           }
 
           .print-brand-name {
             color: #1e3a5f;
-            font-size: 10px;
+            font-size: 11px;
             font-weight: 800;
           }
 
           .print-brand-subtitle {
             color: #64748b;
-            font-size: 6px;
+            font-size: 7px;
             margin-top: 0;
           }
 
           .print-brand-row > .text-left {
             position: relative;
             z-index: 1;
-            min-width: 58px;
-            padding-right: 5px;
+            min-width: 72px;
+            padding-right: 8px;
             border-right: 1px solid #dbe3ee;
             color: #64748b !important;
-            font-size: 6px !important;
+            font-size: 7px !important;
           }
 
           .print-brand-row > .text-left strong {
@@ -246,10 +246,10 @@ export default function PurchaseOrderDetails() {
 
           .print-card {
             border: 1px solid #cbd5e1 !important;
-            border-radius: 6px !important;
+            border-radius: 3px !important;
             box-shadow: none !important;
             break-inside: avoid;
-            margin-bottom: 14px;
+            margin-bottom: 10px;
           }
 
           .print-items-card {
@@ -275,8 +275,16 @@ export default function PurchaseOrderDetails() {
 
           .print-card [data-slot="card-header"] {
             position: relative;
-            padding: 8px 12px 8px 18px !important;
+            padding: 7px 12px !important;
             border-right: 4px solid #d4a853;
+            border-bottom: 1px solid #dbe3ee;
+            background: #f8fafc !important;
+          }
+
+          .print-card [data-slot="card-title"] {
+            color: #1e3a5f !important;
+            font-size: 11px !important;
+            font-weight: 800;
           }
 
           .print-card [data-slot="card-content"] {
@@ -284,32 +292,33 @@ export default function PurchaseOrderDetails() {
           }
 
           .print-order-summary [data-slot="card-content"] {
-            padding: 7px 10px !important;
+            padding: 8px 12px !important;
           }
 
           .print-info-grid {
             display: grid !important;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 3px 16px !important;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0 14px !important;
           }
 
           .print-order-summary .print-info-grid > div {
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            min-height: 21px;
+            display: block;
+            min-height: 38px;
             border-bottom: 1px solid #e2e8f0;
-            padding: 1px 0 2px;
+            padding: 3px 0 4px;
           }
 
           .print-order-summary .print-info-grid p {
             margin: 0;
             font-size: 8px;
+            color: #64748b;
           }
 
           .print-order-summary .print-info-grid p.mt-1 {
             margin-top: 0 !important;
             font-size: 9px;
+            font-weight: 700;
+            color: #172033;
           }
 
           .print-order-summary .print-info-grid p.text-lg {
@@ -317,8 +326,8 @@ export default function PurchaseOrderDetails() {
           }
 
           .print-order-summary .mt-6 {
-            margin-top: 5px !important;
-            padding-top: 5px !important;
+            margin-top: 7px !important;
+            padding-top: 6px !important;
           }
 
           .print-order-summary .mt-6 p {
@@ -329,19 +338,20 @@ export default function PurchaseOrderDetails() {
           .print-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
+            font-size: 9px;
           }
 
           .print-table th {
             background: #1e3a5f !important;
             color: white !important;
             padding: 7px 6px;
+            font-weight: 700;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
 
           .print-table td {
-            padding: 6px;
+            padding: 5px 6px;
             border-bottom: 1px solid #e2e8f0;
           }
 
@@ -358,12 +368,13 @@ export default function PurchaseOrderDetails() {
           .print-footer {
             display: flex !important;
             justify-content: space-between;
-            margin-top: 24px;
-            padding: 10px 12px;
-            border-top: 4px solid #d4a853;
-            color: #e7eef7;
-            font-size: 10px;
-            background: #1e3a5f;
+            margin-top: 16px;
+            padding: 7px 10px;
+            border-top: 3px solid #d4a853;
+            color: #475569;
+            font-size: 8px;
+            background: #f8fafc;
+            border-bottom: 1px solid #cbd5e1;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
@@ -449,7 +460,10 @@ export default function PurchaseOrderDetails() {
 
         {/* Order Info */}
       <Card className="border-0 shadow-sm print-card print-order-summary">
-        <CardContent className="p-6">
+          <CardHeader>
+            <CardTitle>بيانات الطلب</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 print-info-grid">
             <div>
               <p className="text-sm text-slate-500">تاريخ الطلب</p>
@@ -469,7 +483,7 @@ export default function PurchaseOrderDetails() {
             </div>
           </div>
           {order.notes && (
-            <div className="mt-6 pt-6 border-t">
+            <div className="mt-6 pt-6 border-t print-order-notes">
               <p className="text-sm text-slate-500">ملاحظات</p>
               <p className="mt-1">{order.notes}</p>
             </div>
@@ -478,7 +492,7 @@ export default function PurchaseOrderDetails() {
       </Card>
 
       {/* Order Items */}
-      <Card className="border-0 shadow-sm print-card print-receipts-card">
+      <Card className="border-0 shadow-sm print-card print-items-card">
         <CardHeader className="border-b" style={{ backgroundColor: '#1e3a5f' }}>
           <CardTitle className="text-lg text-white">أصناف الطلب</CardTitle>
         </CardHeader>
@@ -523,13 +537,13 @@ export default function PurchaseOrderDetails() {
 
       {/* Receipts History */}
       {receipts.length > 0 && (
-        <Card className="border-0 shadow-sm print-card">
+        <Card className="border-0 shadow-sm print-card print-receipts-card">
           <CardHeader className="border-b" style={{ backgroundColor: '#1e3a5f' }}>
             <CardTitle className="text-lg text-white">سجل الاستلامات</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="print-table">
                 <TableHeader>
                   <TableRow className="bg-slate-50">
                     <TableHead className="text-right">رقم الإذن</TableHead>
