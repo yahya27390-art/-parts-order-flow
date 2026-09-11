@@ -104,8 +104,8 @@ export default function PurchaseOrderDetails() {
       <style>{`
         @media print {
           @page {
-            size: A4 landscape;
-            margin: 12mm;
+            size: A4 portrait;
+            margin: 14mm 12mm;
           }
 
           body * {
@@ -119,10 +119,13 @@ export default function PurchaseOrderDetails() {
 
           .print-area {
             position: absolute;
-            inset: 0;
+            top: 0;
+            right: 0;
             width: 100%;
             padding: 0;
             background: white;
+            color: #172033;
+            font-size: 11px;
           }
 
           .no-print {
@@ -134,8 +137,8 @@ export default function PurchaseOrderDetails() {
             align-items: center;
             justify-content: space-between;
             border-bottom: 3px double #1e3a5f;
-            padding-bottom: 14px;
-            margin-bottom: 16px;
+            padding-bottom: 12px;
+            margin-bottom: 14px;
           }
 
           .print-card {
@@ -143,30 +146,65 @@ export default function PurchaseOrderDetails() {
             border-radius: 6px !important;
             box-shadow: none !important;
             break-inside: avoid;
+            margin-bottom: 14px;
+          }
+
+          .print-card [data-slot="card-header"] {
+            padding: 8px 12px !important;
+          }
+
+          .print-card [data-slot="card-content"] {
+            padding: 12px !important;
+          }
+
+          .print-info-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px 18px !important;
+          }
+
+          .print-info-grid > div {
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 7px;
           }
 
           .print-table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 10px;
           }
 
           .print-table th {
             background: #1e3a5f !important;
             color: white !important;
-            padding: 8px;
+            padding: 7px 6px;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
           }
 
           .print-table td {
-            padding: 7px 8px;
+            padding: 6px;
             border-bottom: 1px solid #e2e8f0;
+          }
+
+          .print-table .progress {
+            display: none;
           }
 
           .print-table tr:nth-child(even) {
             background: #f8fafc;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+          }
+
+          .print-footer {
+            display: flex !important;
+            justify-content: space-between;
+            margin-top: 24px;
+            padding-top: 10px;
+            border-top: 1px solid #cbd5e1;
+            color: #64748b;
+            font-size: 10px;
           }
         }
       `}</style>
@@ -217,7 +255,7 @@ export default function PurchaseOrderDetails() {
       </div>
 
       <div className="print-area" dir="rtl">
-        <div className="print-header hidden">
+        <div className="print-header hidden print:block">
           <div className="flex items-center gap-4">
             {settings?.logo_url && settings?.show_logo_print && (
               <img
@@ -242,7 +280,7 @@ export default function PurchaseOrderDetails() {
         {/* Order Info */}
       <Card className="border-0 shadow-sm print-card">
         <CardContent className="p-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 print-info-grid">
             <div>
               <p className="text-sm text-slate-500">تاريخ الطلب</p>
               <p className="font-medium mt-1">{new Date(order.order_date).toLocaleDateString('ar-SA')}</p>
@@ -299,7 +337,7 @@ export default function PurchaseOrderDetails() {
                     <TableCell>{(item.unit_cost || 0).toFixed(2)} ر.س</TableCell>
                     <TableCell className="w-40">
                       <div className="flex items-center gap-2">
-                        <Progress value={calculateProgress(item)} className="h-2" />
+                        <Progress value={calculateProgress(item)} className="h-2 progress" />
                         <span className="text-xs text-slate-500 w-12">
                           {calculateProgress(item).toFixed(0)}%
                         </span>
@@ -343,6 +381,11 @@ export default function PurchaseOrderDetails() {
           </CardContent>
         </Card>
       )}
+      <div className="print-footer hidden">
+        <span>{settings?.system_name || 'نظام إدارة المخزون'}</span>
+        <span>طلب شراء: {order.order_number}</span>
+        <span>صفحة التقرير</span>
+      </div>
       </div>
     </div>
   );
