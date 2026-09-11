@@ -72,5 +72,5 @@ const createEntity = (entityName) => {
 
 export const db = {
   entities: Object.fromEntries(Object.keys(tables).map((name) => [name, createEntity(name)])),
-  auth: supabase.auth
+  auth: supabase?.auth
 };
