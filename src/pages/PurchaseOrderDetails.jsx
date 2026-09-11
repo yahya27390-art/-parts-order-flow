@@ -133,12 +133,77 @@ export default function PurchaseOrderDetails() {
           }
 
           .print-header {
+            display: block !important;
+            border: 1px solid #cbd5e1;
+            border-top: 5px solid #1e3a5f;
+            border-radius: 8px;
+            padding: 14px 16px 12px;
+            margin-bottom: 14px;
+            background: #fff;
+          }
+
+          .print-brand-row {
             display: flex !important;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 3px double #1e3a5f;
+            gap: 16px;
             padding-bottom: 12px;
-            margin-bottom: 14px;
+            border-bottom: 1px solid #dbe3ee;
+          }
+
+          .print-brand {
+            display: flex !important;
+            align-items: center;
+            gap: 12px;
+          }
+
+          .print-brand img {
+            width: 58px;
+            height: 58px;
+            object-fit: contain;
+          }
+
+          .print-brand-name {
+            color: #1e3a5f;
+            font-size: 17px;
+            font-weight: 800;
+          }
+
+          .print-brand-subtitle {
+            color: #64748b;
+            font-size: 9px;
+            margin-top: 3px;
+          }
+
+          .print-document-title {
+            text-align: center;
+            margin-top: 12px;
+          }
+
+          .print-document-title h2 {
+            color: #1e3a5f;
+            font-size: 18px;
+            font-weight: 800;
+            margin: 0;
+          }
+
+          .print-document-title p {
+            color: #64748b;
+            font-size: 10px;
+            margin: 4px 0 0;
+          }
+
+          .print-document-meta {
+            display: flex !important;
+            justify-content: center;
+            gap: 28px;
+            margin-top: 10px;
+            color: #475569;
+            font-size: 10px;
+          }
+
+          .print-document-meta strong {
+            color: #1e3a5f;
           }
 
           .print-card {
@@ -277,24 +342,33 @@ export default function PurchaseOrderDetails() {
 
       <div className="print-area" dir="rtl">
         <div className="print-header hidden print:block">
-          <div className="flex items-center gap-4">
+          <div className="print-brand-row">
+            <div className="print-brand">
             {settings?.logo_url && settings?.show_logo_print && (
               <img
                 src={settings.logo_url}
                 alt="شعار النظام"
-                className="h-20 w-20 object-contain"
               />
             )}
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: '#1e3a5f' }}>
+              <div className="print-brand-name">
                 {settings?.system_name || 'نظام إدارة المخزون'}
-              </h1>
-              <p className="text-slate-500 mt-1">تقرير طلب شراء</p>
+              </div>
+              <div className="print-brand-subtitle">نظام إدارة المشتريات والمخزون</div>
+            </div>
+            </div>
+            <div className="text-left text-xs text-slate-500">
+              <div>تاريخ الطباعة</div>
+              <strong className="text-slate-700">{new Date().toLocaleDateString('ar-SA')}</strong>
             </div>
           </div>
-          <div className="text-left">
-            <p className="text-sm text-slate-500">تاريخ الطباعة</p>
-            <p className="font-medium">{new Date().toLocaleDateString('ar-SA')}</p>
+          <div className="print-document-title">
+            <h2>طلب شراء</h2>
+            <p>مستند رسمي لمتابعة الطلب والاستلامات</p>
+          </div>
+          <div className="print-document-meta">
+            <span>رقم الطلب: <strong>{order.order_number}</strong></span>
+            <span>المورد: <strong>{order.supplier_name}</strong></span>
           </div>
         </div>
 
