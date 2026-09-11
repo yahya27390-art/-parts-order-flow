@@ -137,10 +137,11 @@ export default function PurchaseOrderDetails() {
             position: relative;
             overflow: hidden;
             border: 1px solid #cbd5e1;
-            border-bottom: 4px solid #d4a853;
-            border-radius: 0 0 10px 10px;
+            border-top: 3px solid #1e3a5f;
+            border-bottom: 2px solid #d4a853;
+            border-radius: 5px;
             padding: 0;
-            margin-bottom: 18px;
+            margin-bottom: 12px;
             background: #fff;
           }
 
@@ -150,34 +151,28 @@ export default function PurchaseOrderDetails() {
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            min-height: 92px;
-            padding: 16px 18px 20px;
-            color: white;
-            background: #1e3a5f;
+            min-height: 58px;
+            padding: 8px 12px;
+            color: #172033;
+            background: #fff;
             border-bottom: 0;
             overflow: hidden;
           }
 
           .print-brand-row::after {
-            content: "";
-            position: absolute;
-            left: 24%;
-            right: -5%;
-            bottom: -1px;
-            height: 24px;
-            background: #fff;
-            clip-path: polygon(7% 100%, 100% 0, 100% 100%);
+            display: none;
           }
 
           .print-brand-row::before {
-            content: "";
+            content: "طلب شراء";
             position: absolute;
-            left: 0;
-            bottom: 0;
-            width: 30%;
-            height: 4px;
-            background: #d4a853;
-            z-index: 1;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: #1e3a5f;
+            font-size: 17px;
+            font-weight: 800;
+            white-space: nowrap;
           }
 
           .print-brand {
@@ -185,55 +180,51 @@ export default function PurchaseOrderDetails() {
             align-items: center;
             gap: 12px;
             position: relative;
-            z-index: 2;
+            z-index: 1;
           }
 
           .print-brand img {
-            width: 62px;
-            height: 62px;
+            width: 42px;
+            height: 42px;
             object-fit: contain;
-            padding: 5px;
-            background: #fff;
-            border-radius: 4px;
+            padding: 2px;
           }
 
           .print-brand-name {
-            color: #fff;
-            font-size: 18px;
+            color: #1e3a5f;
+            font-size: 13px;
             font-weight: 800;
           }
 
           .print-brand-subtitle {
-            color: #dbe5f1;
-            font-size: 9px;
-            margin-top: 3px;
+            color: #64748b;
+            font-size: 8px;
+            margin-top: 1px;
           }
 
           .print-brand-row > .text-left {
             position: relative;
-            z-index: 2;
-            min-width: 92px;
-            padding-right: 12px;
-            border-right: 1px solid rgba(255,255,255,0.35);
-            color: #dbe5f1 !important;
+            z-index: 1;
+            min-width: 78px;
+            padding-right: 8px;
+            border-right: 1px solid #dbe3ee;
+            color: #64748b !important;
+            font-size: 8px !important;
           }
 
           .print-brand-row > .text-left strong {
-            color: #fff !important;
+            color: #1e3a5f !important;
             display: block;
-            margin-top: 3px;
+            margin-top: 1px;
           }
 
           .print-document-title {
-            text-align: center;
-            margin: 0;
-            padding: 12px 16px 8px;
-            background: #fff;
+            display: none !important;
           }
 
           .print-document-title h2 {
             color: #1e3a5f;
-            font-size: 20px;
+            font-size: 17px;
             font-weight: 800;
             margin: 0;
           }
@@ -247,14 +238,13 @@ export default function PurchaseOrderDetails() {
           .print-document-meta {
             display: flex !important;
             justify-content: space-around;
-            gap: 18px;
-            margin: 0 14px 12px;
-            padding: 8px 10px;
+            gap: 12px;
+            margin: 0 10px 8px;
+            padding: 5px 8px;
             color: #475569;
-            font-size: 10px;
-            border: 1px solid #dbe3ee;
-            border-radius: 4px;
-            background: #f8fafc;
+            font-size: 9px;
+            border-top: 1px solid #e2e8f0;
+            background: #fff;
           }
 
           .print-document-meta strong {
