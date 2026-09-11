@@ -18,6 +18,10 @@ export const AuthProvider = ({ children }) => {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setIsAuthenticated(Boolean(session?.user));
+      setAuthError(session?.user ? null : {
+        type: 'auth_required',
+        message: 'يرجى تسجيل الدخول باستخدام حساب Supabase'
+      });
       setIsLoadingAuth(false);
     });
     return () => listener.subscription.unsubscribe();
@@ -38,6 +42,10 @@ export const AuthProvider = ({ children }) => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
       setIsAuthenticated(Boolean(session?.user));
+      setAuthError(session?.user ? null : {
+        type: 'auth_required',
+        message: 'يرجى تسجيل الدخول باستخدام حساب Supabase'
+      });
       setIsLoadingAuth(false);
     } catch (error) {
       console.error('Authentication check failed:', error);
@@ -54,7 +62,7 @@ export const AuthProvider = ({ children }) => {
     setIsAuthenticated(false);
     
     if (supabase) supabase.auth.signOut();
-    if (shouldRedirect) window.location.assign('/');
+    if (shouldRedirect) window.location.assign(import.meta.env.BASE_URL);
   };
 
   const navigateToLogin = () => {
