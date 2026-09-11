@@ -13,6 +13,8 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     checkAuth();
+    if (!supabase) return undefined;
+
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       setIsAuthenticated(Boolean(session?.user));
