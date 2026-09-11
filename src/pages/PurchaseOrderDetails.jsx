@@ -137,11 +137,11 @@ export default function PurchaseOrderDetails() {
             position: relative;
             overflow: hidden;
             border: 1px solid #cbd5e1;
-            border-top: 3px solid #1e3a5f;
-            border-bottom: 2px solid #d4a853;
+            border-top: 2px solid #1e3a5f;
+            border-bottom: 1px solid #d4a853;
             border-radius: 5px;
             padding: 0;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
             background: #fff;
           }
 
@@ -151,8 +151,9 @@ export default function PurchaseOrderDetails() {
             align-items: center;
             justify-content: space-between;
             gap: 16px;
-            min-height: 58px;
-            padding: 8px 12px;
+            min-height: 38px;
+            height: 38px;
+            padding: 4px 8px;
             color: #172033;
             background: #fff;
             border-bottom: 0;
@@ -170,7 +171,7 @@ export default function PurchaseOrderDetails() {
             top: 50%;
             transform: translate(-50%, -50%);
             color: #1e3a5f;
-            font-size: 17px;
+            font-size: 12px;
             font-weight: 800;
             white-space: nowrap;
           }
@@ -178,44 +179,44 @@ export default function PurchaseOrderDetails() {
           .print-brand {
             display: flex !important;
             align-items: center;
-            gap: 12px;
+            gap: 6px;
             position: relative;
             z-index: 1;
           }
 
           .print-brand img {
-            width: 42px;
-            height: 42px;
+            width: 28px;
+            height: 28px;
             object-fit: contain;
-            padding: 2px;
+            padding: 0;
           }
 
           .print-brand-name {
             color: #1e3a5f;
-            font-size: 13px;
+            font-size: 10px;
             font-weight: 800;
           }
 
           .print-brand-subtitle {
             color: #64748b;
-            font-size: 8px;
-            margin-top: 1px;
+            font-size: 6px;
+            margin-top: 0;
           }
 
           .print-brand-row > .text-left {
             position: relative;
             z-index: 1;
-            min-width: 78px;
-            padding-right: 8px;
+            min-width: 58px;
+            padding-right: 5px;
             border-right: 1px solid #dbe3ee;
             color: #64748b !important;
-            font-size: 8px !important;
+            font-size: 6px !important;
           }
 
           .print-brand-row > .text-left strong {
             color: #1e3a5f !important;
             display: block;
-            margin-top: 1px;
+            margin-top: 0;
           }
 
           .print-document-title {
@@ -236,15 +237,7 @@ export default function PurchaseOrderDetails() {
           }
 
           .print-document-meta {
-            display: flex !important;
-            justify-content: space-around;
-            gap: 12px;
-            margin: 0 10px 8px;
-            padding: 5px 8px;
-            color: #475569;
-            font-size: 9px;
-            border-top: 1px solid #e2e8f0;
-            background: #fff;
+            display: none !important;
           }
 
           .print-document-meta strong {
