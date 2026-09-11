@@ -72,5 +72,19 @@ const createEntity = (entityName) => {
 
 export const db = {
   entities: Object.fromEntries(Object.keys(tables).map((name) => [name, createEntity(name)])),
-  auth: supabase?.auth
+  auth: supabase?.auth,
+  storage: {
+    async uploadLogo(file) {
+      if (!supabase) throw new Error('Supabase configuration is missing.');
+      const extension = file.name.split('.').pop()?.toLowerCase() || 'png';
+      const filePath = `logos/logo-${crypto.randomUUID()}.${extension}`;
+      const { error: uploadError } = await supabase.storage
+        .from('app-assets')
+        .upload(filePath, file, { cacheControl: '3600', upsert: false });
+      mapError(uploadError);
+
+      const { data } = supabase.storage.from('app-assets').getPublicUrl(filePath);
+      return data.publicUrl;
+    }
+  }
 };

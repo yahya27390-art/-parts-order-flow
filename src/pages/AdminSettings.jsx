@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { db as base44 } from '@/api/databaseClient';
+import { db } from '@/api/databaseClient';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ export default function AdminSettings() {
 
   const loadSettings = async () => {
     try {
-      const data = await base44.entities.SystemSettings.list();
+      const data = await db.entities.SystemSettings.list();
       if (data.length > 0) {
         setSettings(data[0]);
         setSettingsId(data[0].id);
@@ -44,9 +44,9 @@ export default function AdminSettings() {
     setSaving(true);
     try {
       if (settingsId) {
-        await base44.entities.SystemSettings.update(settingsId, settings);
+        await db.entities.SystemSettings.update(settingsId, settings);
       } else {
-        const newSettings = await base44.entities.SystemSettings.create(settings);
+        const newSettings = await db.entities.SystemSettings.create(settings);
         setSettingsId(newSettings.id);
       }
       toast.success('تم حفظ الإعدادات بنجاح');
@@ -70,8 +70,12 @@ export default function AdminSettings() {
 
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
-      setSettings({ ...settings, logo_url: file_url });
+      if (file.size > 2 * 1024 * 1024) {
+        throw new Error('حجم الصورة يجب ألا يتجاوز 2 ميجابايت');
+      }
+
+      const logoUrl = await db.storage.uploadLogo(file);
+      setSettings((current) => ({ ...current, logo_url: logoUrl }));
       toast.success('تم رفع اللوجو بنجاح');
     } catch (error) {
       toast.error('حدث خطأ في رفع الصورة');
