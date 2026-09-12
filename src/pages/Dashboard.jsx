@@ -264,69 +264,17 @@ export default function Dashboard() {
       </Card>
 
       {/* KPI Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         {statCards.map((stat, index) => (
           <Link key={index} to={stat.href}>
-            <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer group overflow-hidden">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
+            <Card className="h-full border-0 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+              <CardContent className="p-5">
+                <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-sm text-slate-500 font-medium">{stat.title}</p>
-                    <p className="text-2xl font-bold mt-2" style={{ color: '#1e3a5f' }}>{stat.value}</p>
+                    <p className="mt-2 text-2xl font-bold" style={{ color: '#1e3a5f' }}>{stat.value}</p>
                   </div>
-
-                  {/* Order analytics */}
-                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
-                    <Card className="border-0 shadow-sm xl:col-span-3">
-                      <CardHeader className="border-b">
-                        <CardTitle className="text-lg text-[#1e3a5f]">حالة طلبات الشراء</CardTitle>
-                        <p className="text-sm text-slate-500">توزيع الطلبات حسب حالتها الحالية</p>
-                      </CardHeader>
-                      <CardContent className="h-72 p-4">
-                        {orderInsights.statusData.length > 0 ? (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={orderInsights.statusData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                              <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                              <Tooltip cursor={{ fill: '#f8fafc' }} />
-                              <Bar dataKey="value" name="عدد الطلبات" radius={[6, 6, 0, 0]}>
-                                {orderInsights.statusData.map(entry => <Cell key={entry.name} fill={entry.color} />)}
-                              </Bar>
-                            </BarChart>
-                          </ResponsiveContainer>
-                        ) : <p className="flex h-full items-center justify-center text-sm text-slate-400">لا توجد بيانات طلبات بعد</p>}
-                      </CardContent>
-                    </Card>
-                    <Card className="border-0 shadow-sm xl:col-span-2">
-                      <CardHeader className="border-b">
-                        <CardTitle className="text-lg text-[#1e3a5f]">نسبة الاستلام</CardTitle>
-                        <p className="text-sm text-slate-500">إجمالي الكميات المطلوبة مقابل المستلمة</p>
-                      </CardHeader>
-                      <CardContent className="h-72 p-4">
-                        {orderInsights.orderedQuantity > 0 ? (
-                          <div className="relative h-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                              <PieChart>
-                                <Pie data={orderInsights.receiptData} dataKey="value" nameKey="name" innerRadius={70} outerRadius={96} paddingAngle={3} startAngle={90} endAngle={-270}>
-                                  {orderInsights.receiptData.map(entry => <Cell key={entry.name} fill={entry.color} />)}
-                                </Pie>
-                                <Tooltip />
-                                <Legend verticalAlign="bottom" iconType="circle" />
-                              </PieChart>
-                            </ResponsiveContainer>
-                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center pb-7 text-center">
-                              <div>
-                                <p className="text-2xl font-bold text-[#1e3a5f]">{Math.min(100, Math.round((orderInsights.receivedQuantity / orderInsights.orderedQuantity) * 100))}%</p>
-                                <p className="text-xs text-slate-500">نسبة الإنجاز</p>
-                              </div>
-                            </div>
-                          </div>
-                        ) : <p className="flex h-full items-center justify-center text-sm text-slate-400">لا توجد كميات مسجلة بعد</p>}
-                      </CardContent>
-                    </Card>
-                  </div>
-                  <div className="p-3 rounded-xl" style={{ backgroundColor: stat.bgColor }}>
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl" style={{ backgroundColor: stat.bgColor }}>
                     <stat.icon className="h-6 w-6 text-white" />
                   </div>
                 </div>
@@ -334,6 +282,58 @@ export default function Dashboard() {
             </Card>
           </Link>
         ))}
+      </div>
+
+      {/* Order analytics */}
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+        <Card className="min-w-0 border-0 shadow-sm xl:col-span-3">
+          <CardHeader className="border-b">
+            <CardTitle className="text-lg text-[#1e3a5f]">حالة طلبات الشراء</CardTitle>
+            <p className="text-sm text-slate-500">توزيع الطلبات حسب حالتها الحالية</p>
+          </CardHeader>
+          <CardContent className="h-72 p-4">
+            {orderInsights.statusData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={orderInsights.statusData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: '#f8fafc' }} />
+                  <Bar dataKey="value" name="عدد الطلبات" radius={[6, 6, 0, 0]}>
+                    {orderInsights.statusData.map(entry => <Cell key={entry.name} fill={entry.color} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <p className="flex h-full items-center justify-center text-sm text-slate-400">لا توجد بيانات طلبات بعد</p>}
+          </CardContent>
+        </Card>
+        <Card className="min-w-0 border-0 shadow-sm xl:col-span-2">
+          <CardHeader className="border-b">
+            <CardTitle className="text-lg text-[#1e3a5f]">نسبة الاستلام</CardTitle>
+            <p className="text-sm text-slate-500">إجمالي الكميات المطلوبة مقابل المستلمة</p>
+          </CardHeader>
+          <CardContent className="h-72 p-4">
+            {orderInsights.orderedQuantity > 0 ? (
+              <div className="relative h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={orderInsights.receiptData} dataKey="value" nameKey="name" innerRadius={70} outerRadius={96} paddingAngle={3} startAngle={90} endAngle={-270}>
+                      {orderInsights.receiptData.map(entry => <Cell key={entry.name} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip />
+                    <Legend verticalAlign="bottom" iconType="circle" />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center pb-7 text-center">
+                  <div>
+                    <p className="text-2xl font-bold text-[#1e3a5f]">{Math.min(100, Math.round((orderInsights.receivedQuantity / orderInsights.orderedQuantity) * 100))}%</p>
+                    <p className="text-xs text-slate-500">نسبة الإنجاز</p>
+                  </div>
+                </div>
+              </div>
+            ) : <p className="flex h-full items-center justify-center text-sm text-slate-400">لا توجد كميات مسجلة بعد</p>}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Alerts Row */}
