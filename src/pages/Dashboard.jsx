@@ -15,6 +15,7 @@ import {
   FileText,
   Settings,
   Warehouse,
+  BarChart3,
   ArrowLeft,
   Boxes
 } from 'lucide-react';
