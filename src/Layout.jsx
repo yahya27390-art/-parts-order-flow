@@ -8,23 +8,17 @@ import {
   Package, 
   FileText, 
   Settings, 
-  Menu, 
-  X,
   ClipboardList,
   BarChart3,
   LogOut,
-  User,
-  ChevronDown,
   ShieldCheck,
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function Layout({ children, currentPageName }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settings, setSettings] = useState(null);
   const [user, setUser] = useState(null);
-  const [expandedGroups, setExpandedGroups] = useState({});
 
   useEffect(() => {
     loadSettings();
@@ -93,168 +87,69 @@ export default function Layout({ children, currentPageName }) {
     },
   ];
 
-  const toggleGroup = (groupId) => {
-    setExpandedGroups(prev => ({ ...prev, [groupId]: !prev[groupId] }));
-  };
-
-  const isGroupActive = (group) => {
-    return group.items.some(item => item.page === currentPageName);
-  };
-
   return (
     <div dir="rtl" className="min-h-screen bg-slate-100">
-      {/* Mobile sidebar backdrop */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside className={cn(
-        "app-sidebar fixed top-0 right-0 z-50 h-full w-72 shadow-xl transition-transform duration-300 lg:translate-x-0",
-        sidebarOpen ? "translate-x-0" : "translate-x-full lg:translate-x-0"
-      )}>
-        <div className="flex flex-col h-full">
-          {/* Logo */}
-          <div className="flex items-center justify-between p-6 border-b border-white/10">
-            <div className="flex items-center gap-3">
-              {settings?.logo_url && settings?.show_logo_interface ? (
-                <img src={settings.logo_url} alt="Logo" className="h-10 w-10 object-contain" />
-              ) : (
-                <div className="brand-mark h-10 w-10 rounded-xl flex items-center justify-center">
-                  <Package className="h-5 w-5 text-white" />
-                </div>
-              )}
-              <span className="font-bold text-lg text-white">
-                {settings?.system_name || 'إدارة المخزون'}
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden text-white hover:bg-white/10"
-              onClick={() => setSidebarOpen(false)}
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Grouped Navigation */}
-          <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-            {navigationGroups.map((group) => {
-              const isActive = isGroupActive(group);
-              const isExpanded = expandedGroups[group.id] || isActive;
+      <header className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <Link to={createPageUrl('Dashboard')} className="flex items-center gap-3 shrink-0">
+            {settings?.logo_url && settings?.show_logo_interface ? (
+              <img src={settings.logo_url} alt="Logo" className="h-9 w-9 object-contain" />
+            ) : (
+              <div className="brand-mark flex h-9 w-9 items-center justify-center rounded-xl">
+                <Package className="h-5 w-5 text-white" />
+              </div>
+            )}
+            <span className="font-bold text-[#1e3a5f]">
+              {settings?.system_name || 'إدارة المخزون'}
+            </span>
+          </Link>
+          <nav className="order-3 flex w-full items-center gap-1 overflow-x-auto pb-1 lg:order-2 lg:w-auto lg:flex-1 lg:justify-center">
+            {navigationGroups.flatMap(group => group.items).map(item => {
+              const active = currentPageName === item.page;
               return (
-                <div key={group.id} className="mb-1">
-                  <button
-                    onClick={() => toggleGroup(group.id)}
-                    className={cn(
-                      "flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-sm font-bold transition-all duration-200",
-                      isActive ? "text-white" : "text-slate-400 hover:text-slate-200"
-                    )}
-                    style={isActive ? { backgroundColor: 'rgba(212, 168, 83, 0.15)' } : {}}
-                  >
-                    <div className="flex items-center gap-2">
-                      <group.icon className="h-4 w-4" />
-                      <span>{group.label}</span>
-                    </div>
-                    <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded ? "rotate-180" : "")} />
-                  </button>
-                  
-                  {isExpanded && (
-                    <div className="mt-1 space-y-0.5 mr-3 border-r-2 border-white/10 pr-1">
-                      {group.items.map((item) => {
-                        const isItemActive = currentPageName === item.page;
-                        return (
-                          <Link
-                            key={item.name}
-                            to={item.href}
-                            onClick={() => setSidebarOpen(false)}
-                            className={cn(
-                              "flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
-                              isItemActive 
-                                ? "text-white shadow-lg" 
-                                : "text-slate-300 hover:text-white hover:bg-white/10"
-                            )}
-                            style={isItemActive ? { backgroundColor: '#d4a853' } : {}}
-                          >
-                            <item.icon className={cn("h-4 w-4", isItemActive ? "text-white" : "text-slate-400")} />
-                            {item.name}
-                          </Link>
-                        );
-                      })}
-                    </div>
+                <Link
+                  key={item.page}
+                  to={item.href}
+                  className={cn(
+                    "flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-colors",
+                    active ? "bg-[#1e3a5f] text-white" : "text-slate-600 hover:bg-slate-100 hover:text-[#1e3a5f]"
                   )}
-                </div>
+                >
+                  <item.icon className="h-4 w-4" />
+                  {item.name}
+                </Link>
               );
             })}
           </nav>
-
-          {/* User section */}
           {user && (
-            <div className="p-4 border-t border-white/10">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-white/5">
-                <div className="brand-mark h-10 w-10 rounded-full flex items-center justify-center">
-                  <User className="h-5 w-5 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{user.full_name}</p>
-                  <p className="text-xs text-slate-400 truncate">{user.email}</p>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleLogout}
-                  className="text-slate-400 hover:text-red-400 hover:bg-white/10"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
+            <div className="order-2 ml-auto flex items-center gap-2 lg:order-3">
+              <div className="hidden text-left sm:block">
+                <p className="max-w-32 truncate text-xs font-semibold text-slate-700">{user.full_name}</p>
+                <p className="max-w-32 truncate text-[10px] text-slate-400">{user.email}</p>
               </div>
+              <Button variant="outline" size="icon" onClick={handleLogout} title="تسجيل الخروج">
+                <LogOut className="h-4 w-4" />
+              </Button>
             </div>
           )}
         </div>
-      </aside>
-
-      {/* Main content */}
-      <div className="lg:mr-72">
-        {/* Mobile header */}
-        <header className="sticky top-0 z-30 backdrop-blur-lg border-b border-slate-200 lg:hidden" style={{ backgroundColor: '#1e3a5f' }}>
-          <div className="flex items-center justify-between px-4 py-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(true)}
-              className="text-white hover:bg-white/10"
-            >
-              <Menu className="h-5 w-5" />
-            </Button>
-            <span className="font-bold text-white">
-              {settings?.system_name || 'إدارة المخزون'}
-            </span>
-            <div className="w-10" />
-          </div>
-        </header>
-
-        {/* Page content */}
-        <main className="app-main p-4 sm:p-6 lg:p-8 min-h-screen">
-          <div className="app-content">
-            <div className="hidden lg:flex items-center justify-between mb-7">
-              <div>
-                <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">إدارة المخزون</p>
-                <p className="mt-1 text-sm font-medium text-slate-500">
-                  {navigationGroups.flatMap((group) => group.items).find((item) => item.page === currentPageName)?.name || 'لوحة التحكم'}
-                </p>
-              </div>
-              <div className="text-xs text-slate-400">
-                {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'full' }).format(new Date())}
-              </div>
+      </header>
+      <main className="app-main min-h-screen p-4 sm:p-6 lg:p-8">
+        <div className="app-content">
+          <div className="mb-7 flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold tracking-wide text-slate-400">إدارة المخزون</p>
+              <p className="mt-1 text-sm font-medium text-slate-500">
+                {navigationGroups.flatMap((group) => group.items).find((item) => item.page === currentPageName)?.name || 'لوحة التحكم'}
+              </p>
             </div>
-            {children}
+            <div className="hidden text-xs text-slate-400 sm:block">
+              {new Intl.DateTimeFormat('ar-SA', { dateStyle: 'full' }).format(new Date())}
+            </div>
           </div>
-        </main>
-      </div>
+          {children}
+        </div>
+      </main>
 
     </div>
   );

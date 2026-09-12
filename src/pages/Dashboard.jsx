@@ -10,7 +10,13 @@ import {
   Clock,
   AlertCircle,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  ShoppingCart,
+  FileText,
+  Settings,
+  Warehouse,
+  ArrowLeft,
+  Boxes
 } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -21,6 +27,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend
+} from 'recharts';
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -35,6 +54,12 @@ export default function Dashboard() {
   const [recentOrders, setRecentOrders] = useState([]);
   const [recentReceipts, setRecentReceipts] = useState([]);
   const [overdueOrders, setOverdueOrders] = useState([]);
+  const [orderInsights, setOrderInsights] = useState({
+    statusData: [],
+    receiptData: [],
+    orderedQuantity: 0,
+    receivedQuantity: 0
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,10 +68,11 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const [orders, receipts, items] = await Promise.all([
+      const [orders, receipts, items, orderItems] = await Promise.all([
         base44.entities.PurchaseOrder.list('-created_date', 100),
         base44.entities.GoodsReceipt.list('-created_date', 100),
-        base44.entities.Item.list()
+        base44.entities.Item.list(),
+        base44.entities.PurchaseOrderItem.list()
       ]);
 
       const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'partial');
@@ -79,6 +105,36 @@ export default function Dashboard() {
       setRecentOrders(orders.slice(0, 5));
       setRecentReceipts(receipts.slice(0, 5));
       setOverdueOrders(overdue);
+      const statusLabels = {
+        pending: 'معلقة',
+        partial: 'جزئية',
+        completed: 'مكتملة',
+        cancelled: 'ملغاة'
+      };
+      const statusColors = {
+        pending: '#d4a853',
+        partial: '#4d82b8',
+        completed: '#2f8f6b',
+        cancelled: '#c45b5b'
+      };
+      const statusData = ['pending', 'partial', 'completed', 'cancelled']
+        .map(status => ({
+          name: statusLabels[status],
+          value: orders.filter(order => order.status === status).length,
+          color: statusColors[status]
+        }))
+        .filter(entry => entry.value > 0);
+      const orderedQuantity = orderItems.reduce((sum, item) => sum + Number(item.quantity_ordered || 0), 0);
+      const receivedQuantity = orderItems.reduce((sum, item) => sum + Number(item.quantity_received || 0), 0);
+      setOrderInsights({
+        statusData,
+        receiptData: [
+          { name: 'تم استلامه', value: receivedQuantity, color: '#2f8f6b' },
+          { name: 'متبقي', value: Math.max(orderedQuantity - receivedQuantity, 0), color: '#e2e8f0' }
+        ],
+        orderedQuantity,
+        receivedQuantity
+      });
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
@@ -124,6 +180,15 @@ export default function Dashboard() {
       completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
       cancelled: 'bg-red-50 text-red-700 border-red-200'
     };
+
+    const quickActions = [
+      { label: 'طلبات الشراء', description: 'إنشاء ومتابعة الطلبات', icon: ShoppingCart, href: 'PurchaseOrders', color: '#1e3a5f' },
+      { label: 'إذن استلام', description: 'تسجيل وصول الأصناف', icon: ClipboardCheck, href: 'SelectOrderForReceipt', color: '#d4a853' },
+      { label: 'دليل الأصناف', description: 'إدارة بيانات القطع', icon: FileText, href: 'Items', color: '#346b83' },
+      { label: 'المخزون الحالي', description: 'عرض الأرصدة والقيم', icon: Warehouse, href: 'Inventory', color: '#2f8f6b' },
+      { label: 'التقارير', description: 'تقارير وتحليلات النظام', icon: BarChart3, href: 'Reports', color: '#72558f' },
+      { label: 'الإعدادات', description: 'تهيئة النظام واللوجو', icon: Settings, href: 'AdminSettings', color: '#64748b' }
+    ];
     const labels = {
       pending: 'معلق',
       partial: 'جزئي',
@@ -167,6 +232,35 @@ export default function Dashboard() {
         </Link>
       </div>
 
+      {/* Main navigation actions */}
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="border-b bg-white">
+          <CardTitle className="flex items-center gap-2 text-lg text-[#1e3a5f]">
+            <Boxes className="h-5 w-5 text-[#d4a853]" />
+            الوصول السريع
+          </CardTitle>
+          <p className="text-sm text-slate-500">كل أدوات إدارة المشتريات والمخزون في مكان واحد</p>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3">
+          {quickActions.map(action => (
+            <Link
+              key={action.href}
+              to={createPageUrl(action.href)}
+              className="group flex items-center gap-4 rounded-2xl border border-slate-100 bg-slate-50 p-4 transition-all hover:-translate-y-0.5 hover:border-slate-200 hover:bg-white hover:shadow-md"
+            >
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white" style={{ backgroundColor: action.color }}>
+                <action.icon className="h-5 w-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-bold text-[#1e3a5f]">{action.label}</span>
+                <span className="mt-1 block text-xs text-slate-500">{action.description}</span>
+              </span>
+              <ArrowLeft className="h-4 w-4 text-slate-300 transition-transform group-hover:-translate-x-1 group-hover:text-[#d4a853]" />
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
+
       {/* KPI Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statCards.map((stat, index) => (
@@ -177,6 +271,58 @@ export default function Dashboard() {
                   <div>
                     <p className="text-sm text-slate-500 font-medium">{stat.title}</p>
                     <p className="text-2xl font-bold mt-2" style={{ color: '#1e3a5f' }}>{stat.value}</p>
+                  </div>
+
+                  {/* Order analytics */}
+                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
+                    <Card className="border-0 shadow-sm xl:col-span-3">
+                      <CardHeader className="border-b">
+                        <CardTitle className="text-lg text-[#1e3a5f]">حالة طلبات الشراء</CardTitle>
+                        <p className="text-sm text-slate-500">توزيع الطلبات حسب حالتها الحالية</p>
+                      </CardHeader>
+                      <CardContent className="h-72 p-4">
+                        {orderInsights.statusData.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={orderInsights.statusData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                              <Tooltip cursor={{ fill: '#f8fafc' }} />
+                              <Bar dataKey="value" name="عدد الطلبات" radius={[6, 6, 0, 0]}>
+                                {orderInsights.statusData.map(entry => <Cell key={entry.name} fill={entry.color} />)}
+                              </Bar>
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : <p className="flex h-full items-center justify-center text-sm text-slate-400">لا توجد بيانات طلبات بعد</p>}
+                      </CardContent>
+                    </Card>
+                    <Card className="border-0 shadow-sm xl:col-span-2">
+                      <CardHeader className="border-b">
+                        <CardTitle className="text-lg text-[#1e3a5f]">نسبة الاستلام</CardTitle>
+                        <p className="text-sm text-slate-500">إجمالي الكميات المطلوبة مقابل المستلمة</p>
+                      </CardHeader>
+                      <CardContent className="h-72 p-4">
+                        {orderInsights.orderedQuantity > 0 ? (
+                          <div className="relative h-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie data={orderInsights.receiptData} dataKey="value" nameKey="name" innerRadius={70} outerRadius={96} paddingAngle={3} startAngle={90} endAngle={-270}>
+                                  {orderInsights.receiptData.map(entry => <Cell key={entry.name} fill={entry.color} />)}
+                                </Pie>
+                                <Tooltip />
+                                <Legend verticalAlign="bottom" iconType="circle" />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="pointer-events-none absolute inset-0 flex items-center justify-center pb-7 text-center">
+                              <div>
+                                <p className="text-2xl font-bold text-[#1e3a5f]">{Math.min(100, Math.round((orderInsights.receivedQuantity / orderInsights.orderedQuantity) * 100))}%</p>
+                                <p className="text-xs text-slate-500">نسبة الإنجاز</p>
+                              </div>
+                            </div>
+                          </div>
+                        ) : <p className="flex h-full items-center justify-center text-sm text-slate-400">لا توجد كميات مسجلة بعد</p>}
+                      </CardContent>
+                    </Card>
                   </div>
                   <div className="p-3 rounded-xl" style={{ backgroundColor: stat.bgColor }}>
                     <stat.icon className="h-6 w-6 text-white" />
