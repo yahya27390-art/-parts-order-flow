@@ -16,6 +16,7 @@ import {
   Settings,
   Warehouse,
   BarChart3,
+  ArrowLeftRight,
   ArrowLeft,
   Boxes
 } from 'lucide-react';
@@ -62,10 +63,21 @@ export default function Dashboard() {
     receivedQuantity: 0
   });
   const [loading, setLoading] = useState(true);
+  const [systemSettings, setSystemSettings] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
+    loadSystemSettings();
   }, []);
+
+  const loadSystemSettings = async () => {
+    try {
+      const settings = await base44.entities.SystemSettings.list();
+      setSystemSettings(settings[0] || null);
+    } catch (error) {
+      console.error('Error loading system settings:', error);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
@@ -218,6 +230,44 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
+      {/* Import route visual */}
+      <section className="flex flex-col items-center justify-center gap-5 py-2 sm:flex-row sm:gap-8 lg:gap-14">
+        <div className="flex min-w-0 items-center gap-3 text-center sm:flex-1 sm:justify-end sm:text-right">
+          {systemSettings?.logo_url && systemSettings?.show_logo_interface ? (
+            <img
+              src={systemSettings.logo_url}
+              alt={systemSettings.system_name || 'شعار النظام'}
+              className="h-16 w-28 object-contain sm:h-20 sm:w-36"
+            />
+          ) : (
+            <div className="flex h-16 w-28 items-center justify-center sm:h-20 sm:w-36">
+              <Package className="h-12 w-12 text-[#1e3a5f]" />
+            </div>
+          )}
+          <div>
+            <p className="text-sm font-bold text-[#1e3a5f]">{systemSettings?.system_name || 'طلبات كوريا'}</p>
+            <p className="mt-1 text-xs text-slate-500">وجهتنا المحلية</p>
+          </div>
+        </div>
+
+        <div className="flex w-full max-w-[260px] shrink-0 items-center gap-2 sm:w-44 lg:w-64">
+          <span className="h-px flex-1 bg-gradient-to-l from-[#d4a853] to-transparent" />
+          <div className="flex flex-col items-center gap-1 text-[#d4a853]">
+            <ArrowLeftRight className="h-6 w-6 animate-pulse" strokeWidth={1.8} />
+            <span className="text-[10px] font-semibold tracking-wide text-slate-400">استيراد مباشر</span>
+          </div>
+          <span className="h-px flex-1 bg-gradient-to-r from-[#d4a853] to-transparent" />
+        </div>
+
+        <div className="flex min-w-0 items-center gap-3 text-center sm:flex-1 sm:justify-start sm:text-left">
+          <span className="text-5xl leading-none" role="img" aria-label="علم كوريا الجنوبية">🇰🇷</span>
+          <div>
+            <p className="text-sm font-bold text-[#1e3a5f]">كوريا الجنوبية</p>
+            <p className="mt-1 text-xs text-slate-500">مصدر قطع الغيار</p>
+          </div>
+        </div>
+      </section>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
