@@ -43,6 +43,33 @@ import {
   Legend
 } from 'recharts';
 
+function KoreanFlag() {
+  return (
+    <span
+      className="relative inline-block h-9 w-14 shrink-0 overflow-hidden rounded-sm bg-white shadow-sm ring-1 ring-slate-200 transition-transform duration-300 group-hover:scale-110"
+      role="img"
+      aria-label="علم كوريا الجنوبية"
+      title="كوريا الجنوبية"
+    >
+      <span className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rotate-[-28deg] overflow-hidden rounded-full bg-[#c60c30]">
+        <span className="absolute -bottom-0.5 -left-0.5 h-3 w-3 rounded-full bg-[#003478]" />
+      </span>
+      <span className="absolute left-1 top-1 flex gap-0.5">
+        <i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" />
+      </span>
+      <span className="absolute right-1 top-1 flex gap-0.5">
+        <i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" />
+      </span>
+      <span className="absolute bottom-1 left-1 flex gap-0.5">
+        <i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" />
+      </span>
+      <span className="absolute bottom-1 right-1 flex gap-0.5">
+        <i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" />
+      </span>
+    </span>
+  );
+}
+
 export default function Dashboard() {
   const [stats, setStats] = useState({
     totalOrders: 0,
@@ -229,42 +256,36 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Import route visual */}
-      <section className="flex flex-col items-center justify-center gap-5 py-2 sm:flex-row sm:gap-8 lg:gap-14">
-        <div className="flex min-w-0 items-center gap-3 text-center sm:flex-1 sm:justify-end sm:text-right">
+      <section className="group flex items-center justify-center gap-3 py-0 sm:gap-6 lg:gap-10">
+        <div className="flex min-w-0 items-center justify-end sm:flex-1">
           {systemSettings?.logo_url && systemSettings?.show_logo_interface ? (
             <img
               src={systemSettings.logo_url}
-              alt={systemSettings.system_name || 'شعار النظام'}
-              className="h-16 w-28 object-contain sm:h-20 sm:w-36"
+              alt="شعار النظام"
+              title={systemSettings.system_name || 'طلبات كوريا'}
+              className="h-12 w-20 object-contain transition-transform duration-300 group-hover:scale-110 sm:h-14 sm:w-24"
             />
           ) : (
-            <div className="flex h-16 w-28 items-center justify-center sm:h-20 sm:w-36">
-              <Package className="h-12 w-12 text-[#1e3a5f]" />
+            <div className="flex h-12 w-20 items-center justify-center sm:h-14 sm:w-24">
+              <Package className="h-9 w-9 text-[#1e3a5f] transition-transform duration-300 group-hover:scale-110" />
             </div>
           )}
-          <div>
-            <p className="text-sm font-bold text-[#1e3a5f]">{systemSettings?.system_name || 'طلبات كوريا'}</p>
-            <p className="mt-1 text-xs text-slate-500">وجهتنا المحلية</p>
-          </div>
         </div>
 
-        <div className="flex w-full max-w-[260px] shrink-0 items-center gap-2 sm:w-44 lg:w-64">
+        <div className="flex w-24 shrink-0 items-center gap-1.5 sm:w-36 lg:w-52" aria-label="مسار الاستيراد من كوريا">
           <span className="h-px flex-1 bg-gradient-to-l from-[#d4a853] to-transparent" />
-          <div className="flex flex-col items-center gap-1 text-[#d4a853]">
-            <ArrowLeftRight className="h-6 w-6 animate-pulse" strokeWidth={1.8} />
-            <span className="text-[10px] font-semibold tracking-wide text-slate-400">استيراد مباشر</span>
+          <div className="relative flex items-center text-[#d4a853]">
+            <span className="absolute -left-1 h-1.5 w-1.5 animate-ping rounded-full bg-[#d4a853] opacity-60" />
+            <ArrowLeftRight className="h-5 w-5 transition-all duration-500 group-hover:scale-125 group-hover:rotate-180" strokeWidth={2} />
+            <span className="absolute -right-1 h-1.5 w-1.5 animate-pulse rounded-full bg-[#d4a853]" />
           </div>
           <span className="h-px flex-1 bg-gradient-to-r from-[#d4a853] to-transparent" />
         </div>
 
-        <div className="flex min-w-0 items-center gap-3 text-center sm:flex-1 sm:justify-start sm:text-left">
-          <span className="text-5xl leading-none" role="img" aria-label="علم كوريا الجنوبية">🇰🇷</span>
-          <div>
-            <p className="text-sm font-bold text-[#1e3a5f]">كوريا الجنوبية</p>
-            <p className="mt-1 text-xs text-slate-500">مصدر قطع الغيار</p>
-          </div>
+        <div className="flex min-w-0 items-center justify-start sm:flex-1">
+          <KoreanFlag />
         </div>
       </section>
 
