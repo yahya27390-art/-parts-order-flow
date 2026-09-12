@@ -181,14 +181,6 @@ export default function Dashboard() {
       cancelled: 'bg-red-50 text-red-700 border-red-200'
     };
 
-    const quickActions = [
-      { label: 'طلبات الشراء', description: 'إنشاء ومتابعة الطلبات', icon: ShoppingCart, href: 'PurchaseOrders', color: '#1e3a5f' },
-      { label: 'إذن استلام', description: 'تسجيل وصول الأصناف', icon: ClipboardCheck, href: 'SelectOrderForReceipt', color: '#d4a853' },
-      { label: 'دليل الأصناف', description: 'إدارة بيانات القطع', icon: FileText, href: 'Items', color: '#346b83' },
-      { label: 'المخزون الحالي', description: 'عرض الأرصدة والقيم', icon: Warehouse, href: 'Inventory', color: '#2f8f6b' },
-      { label: 'التقارير', description: 'تقارير وتحليلات النظام', icon: BarChart3, href: 'Reports', color: '#72558f' },
-      { label: 'الإعدادات', description: 'تهيئة النظام واللوجو', icon: Settings, href: 'AdminSettings', color: '#64748b' }
-    ];
     const labels = {
       pending: 'معلق',
       partial: 'جزئي',
@@ -201,6 +193,15 @@ export default function Dashboard() {
       </span>
     );
   };
+
+  const quickActions = [
+    { label: 'طلبات الشراء', description: 'إنشاء ومتابعة الطلبات', icon: ShoppingCart, href: 'PurchaseOrders', color: '#1e3a5f' },
+    { label: 'إذن استلام', description: 'تسجيل وصول الأصناف', icon: ClipboardCheck, href: 'SelectOrderForReceipt', color: '#d4a853' },
+    { label: 'دليل الأصناف', description: 'إدارة بيانات القطع', icon: FileText, href: 'Items', color: '#346b83' },
+    { label: 'المخزون الحالي', description: 'عرض الأرصدة والقيم', icon: Warehouse, href: 'Inventory', color: '#2f8f6b' },
+    { label: 'التقارير', description: 'تقارير وتحليلات النظام', icon: BarChart3, href: 'Reports', color: '#72558f' },
+    { label: 'الإعدادات', description: 'تهيئة النظام واللوجو', icon: Settings, href: 'AdminSettings', color: '#64748b' }
+  ];
 
   if (loading) {
     return (
