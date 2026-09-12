@@ -133,6 +133,10 @@
       #f4f7fb;
   }
 
+  .app-main {
+    padding-top: 1.25rem;
+  }
+
   .app-content {
     width: 100%;
     max-width: 1440px;

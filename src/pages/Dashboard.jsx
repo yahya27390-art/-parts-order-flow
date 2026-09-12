@@ -46,26 +46,23 @@ import {
 function KoreanFlag() {
   return (
     <span
-      className="relative inline-block h-9 w-14 shrink-0 overflow-hidden rounded-sm bg-white shadow-sm ring-1 ring-slate-200 transition-transform duration-300 group-hover:scale-110"
+      className="inline-block h-10 w-14 shrink-0 overflow-hidden rounded-sm bg-white shadow-sm ring-1 ring-slate-200 transition-transform duration-300 group-hover:scale-110"
       role="img"
       aria-label="علم كوريا الجنوبية"
       title="كوريا الجنوبية"
     >
-      <span className="absolute left-1/2 top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rotate-[-28deg] overflow-hidden rounded-full bg-[#c60c30]">
-        <span className="absolute -bottom-0.5 -left-0.5 h-3 w-3 rounded-full bg-[#003478]" />
-      </span>
-      <span className="absolute left-1 top-1 flex gap-0.5">
-        <i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" />
-      </span>
-      <span className="absolute right-1 top-1 flex gap-0.5">
-        <i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" />
-      </span>
-      <span className="absolute bottom-1 left-1 flex gap-0.5">
-        <i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" />
-      </span>
-      <span className="absolute bottom-1 right-1 flex gap-0.5">
-        <i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" /><i className="h-1 w-0.5 bg-slate-900" />
-      </span>
+      <svg viewBox="0 0 56 40" className="h-full w-full" aria-hidden="true">
+        <rect width="56" height="40" fill="#fff" />
+        <g transform="translate(28 20) rotate(-28)">
+          <path d="M0-8a8 8 0 1 0 0 16 4 4 0 1 1 0-8 4 4 0 1 0 0-8" fill="#c60c30" />
+          <path d="M0 8a8 8 0 1 0 0-16 4 4 0 1 1 0 8 4 4 0 1 0 0 8" fill="#003478" />
+        </g>
+        <g fill="#111827">
+          <path d="M7 5h2v7H7zm3 0h2v7h-2zM7 28h2v7H7zm3 0h2v7h-2z" />
+          <path d="M44 5h2v7h-2zm3 0h2v7h-2zM44 28h2v7h-2zm3 0h2v7h-2z" />
+          <path d="M4 6h3v2H4zm0 4h3v2H4M49 6h3v2h-3zm0 4h3v2h-3zM4 28h3v2H4zm0 4h3v2H4m45-6h3v2h-3zm0 4h3v2h-3z" />
+        </g>
+      </svg>
     </span>
   );
 }
@@ -258,7 +255,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-5">
       {/* Import route visual */}
-      <section className="group flex items-center justify-center gap-3 py-0 sm:gap-6 lg:gap-10">
+      <section className="group flex h-14 items-center justify-center gap-3 sm:gap-6 lg:gap-10">
         <div className="flex min-w-0 items-center justify-end sm:flex-1">
           {systemSettings?.logo_url && systemSettings?.show_logo_interface ? (
             <img

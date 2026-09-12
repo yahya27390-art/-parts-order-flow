@@ -136,7 +136,7 @@ export default function Layout({ children, currentPageName }) {
       </header>
       <main className="app-main min-h-screen p-4 sm:p-6 lg:p-8">
         <div className="app-content">
-          <div className="mb-7 flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold tracking-wide text-slate-400">إدارة المخزون</p>
               <p className="mt-1 text-sm font-medium text-slate-500">
