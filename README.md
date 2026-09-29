@@ -3,6 +3,16 @@
 تطبيق ويب لإدارة **مشتريات ومخزون قطع غيار السيارات (هيونداي / كيا)**، بواجهة عربية (RTL)
 يعمل على **React + Vite** مع خلفية **Supabase (PostgreSQL + Auth + Storage)**.
 
+## 🚀 معاينة مباشرة
+
+| | |
+|---|---|
+| **رابط المعاينة** | **https://yahya27390-art.github.io/-parts-order-flow/** |
+| حالة النشر | [GitHub Actions](https://github.com/yahya27390-art/-parts-order-flow/actions) |
+| المستودع | https://github.com/yahya27390-art/-parts-order-flow |
+
+النشر تلقائي: أي دفع إلى `main` → تشغيل تحقق (lint + اختبارات) → بناء → نشر على GitHub Pages.
+
 ---
 
 ## المحتويات
