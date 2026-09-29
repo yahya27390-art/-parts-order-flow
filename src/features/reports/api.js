@@ -4,7 +4,7 @@
  * تعتمد على عروض التجميع (v_order_fulfillment / v_inventory) وعلى العدّاد
  * count (head-only) بدل تنزيل الجداول كاملة إلى المتصفح.
  */
-import { db, TABLES, VIEWS, selectAllRows } from '@/api/supabaseClient';
+import { db, TABLES, VIEWS, selectAllRows, withColumnFallback } from '@/api/supabaseClient';
 import { buildDiscrepancyRows, summarizeDiscrepancies, filterRowsByDateRange } from './logic';
 import { toNumber, parseDate } from '@/lib/format';
 import { getStockStatus } from '@/features/inventory/logic';
@@ -74,7 +74,11 @@ export const getDashboardData = async () => {
     await Promise.all([
       db.entities.PurchaseOrder.count(),
       db.entities.PurchaseOrder.count({ status: [ORDER_STATUS.PENDING, ORDER_STATUS.PARTIAL] }),
-      db.entities.GoodsReceipt.count({ receipt_date: { gte: todayIso }, voided_at: null }),
+      withColumnFallback(
+        (filters) => db.entities.GoodsReceipt.count(filters),
+        { receipt_date: { gte: todayIso }, voided_at: null },
+        'voided_at',
+      ),
       db.entities.PurchaseOrder.list('-created_date', 5),
       db.entities.GoodsReceipt.list('-created_date', 5),
       readInventoryRows(),
@@ -128,13 +132,16 @@ export const getDashboardData = async () => {
 
 /** تقرير إذونات الاستلام مع بنوده (يُفلتر على الخادم حسب الفترة). */
 export const getReceiptsReport = async ({ from = '', to = '', limit = 200 } = {}) => {
-  const receipts = await selectAllRows(TABLES.GoodsReceipt, {
-    filters: {
-      ...(from || to ? { receipt_date: { gte: from || undefined, lte: to ? `${to}T23:59:59` : undefined } } : {}),
-      voided_at: null,
-    },
-    order: '-receipt_date',
-  });
+  const filters = {
+    ...(from || to ? { receipt_date: { gte: from || undefined, lte: to ? `${to}T23:59:59` : undefined } } : {}),
+    voided_at: null,
+  };
+
+  const receipts = await withColumnFallback(
+    (appliedFilters) => selectAllRows(TABLES.GoodsReceipt, { filters: appliedFilters, order: '-receipt_date' }),
+    filters,
+    'voided_at',
+  );
 
   const trimmed = receipts.slice(0, limit);
 

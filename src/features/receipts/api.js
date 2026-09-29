@@ -1,7 +1,7 @@
 /**
  * receipts/api.js — كل عمليات أذونات الاستلام.
  */
-import { db, TABLES, selectRows, selectAllRows, callRpc, isStockRpcAvailable } from '@/api/supabaseClient';
+import { db, TABLES, selectRows, selectAllRows, callRpc, isStockRpcAvailable, withColumnFallback } from '@/api/supabaseClient';
 import { goodsReceiptSchema, firstValidationError } from '@/lib/schemas';
 import { toNumber } from '@/lib/format';
 import { generateReceiptNumber } from '@/lib/documentNumbers';
@@ -22,26 +22,42 @@ export const listReceiptsPage = ({
   to = '',
   includeVoided = false,
   order = '-created_date',
-} = {}) =>
-  selectRows(TABLES.GoodsReceipt, {
-    page,
-    pageSize,
-    search,
-    searchColumns: RECEIPT_SEARCH_COLUMNS,
-    filters: {
-      ...(from || to ? { receipt_date: { gte: from || undefined, lte: to ? `${to}T23:59:59` : undefined } } : {}),
-      ...(includeVoided ? {} : { voided_at: null }),
-    },
-    order,
-  });
+} = {}) => {
+  const baseFilters = from || to
+    ? { receipt_date: { gte: from || undefined, lte: to ? `${to}T23:59:59` : undefined } }
+    : {};
+  const filters = includeVoided ? baseFilters : { ...baseFilters, voided_at: null };
+
+  return withColumnFallback(
+    (appliedFilters) =>
+      selectRows(TABLES.GoodsReceipt, {
+        page,
+        pageSize,
+        search,
+        searchColumns: RECEIPT_SEARCH_COLUMNS,
+        filters: appliedFilters,
+        order,
+      }),
+    filters,
+    'voided_at',
+  );
+};
 
 export const listRecentReceipts = (limit = 5) =>
-  selectRows(TABLES.GoodsReceipt, { pageSize: limit, order: '-created_date', filters: { voided_at: null } });
+  withColumnFallback(
+    (filters) => selectRows(TABLES.GoodsReceipt, { pageSize: limit, order: '-created_date', filters }),
+    { voided_at: null },
+    'voided_at',
+  );
 
 export const countReceipts = (filters = {}) => db.entities.GoodsReceipt.count(filters);
 
 export const countReceiptsSince = (isoDate) =>
-  db.entities.GoodsReceipt.count({ receipt_date: { gte: isoDate }, voided_at: null });
+  withColumnFallback(
+    (filters) => db.entities.GoodsReceipt.count(filters),
+    { receipt_date: { gte: isoDate }, voided_at: null },
+    'voided_at',
+  );
 
 export const getReceiptDetail = async (receiptId) => {
   const [receipts, items] = await Promise.all([

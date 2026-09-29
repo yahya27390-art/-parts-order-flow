@@ -160,6 +160,29 @@ export const selectAllRows = async (source, options = {}) => {
   return pages;
 };
 
+/**
+ * بعض الفلاتر تعتمد على أعمدة أُضيفت في ترحيل لاحق (مثل voided_at).
+ * إن لم يكن الترحيل مطبَّقًا بعد نتجاهل هذا الفلتر بدل إفشال الاستعلام.
+ */
+export const isMissingColumnError = (error) => {
+  const message = `${error?.message || ''}`.toLowerCase();
+  return (
+    error?.code === '42703' ||
+    message.includes('does not exist') ||
+    (message.includes('column') && message.includes('not found'))
+  );
+};
+
+export const withColumnFallback = async (runner, filters = {}, column) => {
+  try {
+    return await runner(filters);
+  } catch (error) {
+    if (!isMissingColumnError(error) || !(column in (filters || {}))) throw error;
+    const { [column]: _ignored, ...fallbackFilters } = filters;
+    return runner(fallbackFilters);
+  }
+};
+
 /** عدد الصفوف المطابقة بدون نقل البيانات (لتقارير لوحة التحكم). */
 export const countRows = async (source, filters = {}) => {
   const client = requireSupabase();
