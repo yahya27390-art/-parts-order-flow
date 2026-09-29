@@ -33,6 +33,7 @@ base44/.app.jsonc
 
 # Temporary/scratch files
 _*.txt
+_*.ps1
 *.tmp
 
 # Raw data exports used only as import sources
