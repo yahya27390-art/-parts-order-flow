@@ -104,3 +104,118 @@ select * from public.stock_movements where item_id = '<uuid>' order by created_d
 
 إذا لم يُطبَّق الترحيل (4)، ستعمل الواجهة عبر مسار بديل مكافئ منطقيًا لكن بلا ذرّية؛
 وإذا لم يُطبَّق (5) فسيعمل النظام بدون أدوار (وقد تظهر رسالة "غير مُفعَّل" لأي مستخدم غير موجود في `profiles`).
+
+
+---
+
+# الربط المباشر بقاعدة البيانات + حماية البيانات
+
+## أولًا: الوضع الحالي (لا يحتاج أي خطوة)
+
+| الطبقة | كيف تعمل |
+|---|---|
+| تشغيل محلي | `.env.local` في جذر المشروع (غير مرفوع إلى Git) |
+| نسخة المعاينة | GitHub → `Settings → Secrets and variables → Actions` → `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` |
+| القاعدة | مشروع Supabase مُدار (سحابي) معرّفه `rwknsqrpmzvtoeplkacx` |
+
+بهذين المفتاحين **أستطيع فحص بنية القاعدة** (وجود الجداول والأعمدة والدوال) وهو ما يكفي
+لتشخيص حالة الترحيلات والتحقق منها.
+
+---
+
+## ثانيًا: خيارات الربط المباشر (اختر واحدًا)
+
+### ✅ الخيار 1 — تطبيق SQL بنفسك (الأكثر أمانًا، والمستخدم حاليًا)
+- **Supabase → SQL Editor → New query** → الصق محتوى ملف الترحيل → **Run**.
+- لا تُعطى أي مفتاح إداري، والمخاطر صفر.
+
+### الخيار 2 — تعطيني صلاحية تنفيذ مؤقتة (أتولى التنفيذ بنفسي)
+1. **Supabase → Project Settings → Database → Connection string → URI**
+   (الصيغة: `postgresql://postgres:<كلمة-مرور-القاعدة>@db.rwknsqrpmzvtoeplkacx.supabase.co:5432/postgres`).
+2. أنشئ ملف **`.db-admin.local`** في جذر المشروع (مُستثنى في `.gitignore`):
+   ```
+   SUPABASE_URL=https://rwknsqrpmzvtoeplkacx.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=<service_role key>
+   SUPABASE_DB_URL=postgresql://postgres:...@db.rwknsqrpmzvtoeplkacx.supabase.co:5432/postgres
+   ```
+3. أخبرني «جاهز» → أنفّذ `npx supabase migration up --db-url ...` ثم أعطيك تقريرًا كاملًا.
+4. بعد الانتهاء: **بدّل كلمة مرور القاعدة ومفتاح service_role** واحذف الملف.
+
+### الخيار 3 — service_role key فقط (للنسخ الاحتياطي والفحص)
+يكفي لسكربت النسخ الاحتياطي لسحب البيانات كاملة (يتجاوز RLS)، لكنه **لا يكفي لتنفيذ DDL**.
+
+### 🚫 لا تُضِف أي مفتاح إداري إلى:
+- `.env.local` (أي متغيّر يبدأ بـ `VITE_` يُدمج في حزمة الواجهة العامة ⇒ يقرأه أي زائر)،
+- `GitHub Secrets` المستخدمة في البناء (نفس السبب)،
+- المستودع أو ملفات التوثيق.
+
+الملف الإداري الصحيح هو **`.db-admin.local`** (بدون بادئة `VITE_`) وهو مُستثنى من Git.
+
+---
+
+## ثالثًا: ماذا يلمس كل ترحيل في بياناتك؟
+
+| الترحيل | يضيف | يعدّل بيانات؟ | يحذف بيانات؟ |
+|---|---|---|---|
+| `..._initial_schema` | جداول أولية | — | — |
+| `..._create_app_assets_storage` | مجلد تخزين | — | — |
+| `..._import_korea_data` | أصناف وإعدادات | upsert على `item_number` | لا |
+| `20260912120000_stock_ledger` | دفتر الحركات + أرقام المستندات + دوال | نعم: إعادة حساب `current_stock` / `average_cost` / `pending_stock` / `status` من المستندات المسجَّلة | **لا يحذف أي صف** |
+| `20260912121000_profiles_roles` | جدول المستخدمين + سياسات | يضيف صفوف `profiles` | لا |
+| `20260912130000_aggregate_stats` | دالتان للتجميع | **لا شيء** | لا |
+| `20260912131000_data_safety_snapshots` | جدول نسخ + دوال حفظ/استرجاع/فحص | **لا شيء** | لا |
+
+> الترحيلان الأخيران **إضافيان بالكامل** ولا يمسّان أي سجل قائم — تطبيقهما آمن تمامًا.
+
+⚠️ شفافية: الترحيل `20260912120000` (المطبَّق لديك فعلًا) هو الوحيد الذي **يعيد حساب** الأرصدة،
+ومصدر الحساب هو أذونات الاستلام المسجَّلة (الرصيد = مجموع المستلم فعليًا، ومتوسط التكلفة =
+المتوسط المرجّح من بنود الاستلام). ولم يكن في النظام القديم أي وسيلة لتعديل الرصيد يدويًا،
+فالمصدر الوحيد للأرقام كان المستندات.
+
+---
+
+## رابعًا: النسخ الاحتياطي والاسترجاع
+
+### 1) نسخة سريعة من جهازك (قراءة فقط — لا تعدّل شيئًا)
+```powershell
+# نسخة كاملة (ملف JSON لكل جدول) + أعداد الصفوف
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-backup.ps1
+
+# تقرير أعداد فقط بدون حفظ ملفات
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/db-backup.ps1 -Action audit
+```
+الناتج في `backups/<التاريخ>/` (مُستثنى من Git) مع `counts.json` و`README.txt`.
+> بدون `service_role` سيقرأ صفرًا بسبب RLS — وهذا دليل عملي أن الحماية تعمل.
+
+### 2) نسخة كاملة رسمية (موصى بها قبل أي ترحيل)
+```bash
+supabase link --project-ref rwknsqrpmzvtoeplkacx
+supabase db dump -f backups/full-$(date +%F).sql
+```
+أو من اللوحة: **Database → Backups** (نسخ يومية، وفعّل PITR إن كان متاحًا).
+
+### 3) نسخ السلامة داخل القاعدة (بعد تطبيق `20260912131000`)
+```sql
+select public.snapshot_business_data('قبل-ترحيل-كذا', 'ملاحظة اختيارية'); -- خُذ نسخة
+select * from public.list_data_snapshots();                                -- اعرض النسخ
+select public.verify_stock_integrity();                                    -- فحص سلامة الأرصدة
+select public.restore_business_data('قبل-ترحيل-كذا', true);                -- استرجاع طارئ
+```
+- الاسترجاع داخل **معاملة واحدة**: أي خطأ يُلغي كل شيء ولا يبقى أثر جزئي.
+- خُذ نسخة جديدة قبل أي استرجاع (فهو يستبدل الوضع الحالي).
+- نظّف النسخ القديمة:
+  `delete from public.data_safety_snapshots where created_date < now() - interval '90 days';`
+
+### 4) قائمة تحقق قبل أي تعديل على القاعدة
+1. نسخة: `supabase db dump` أو `snapshot_business_data`.
+2. `scripts/db-backup.ps1 -Action audit` وسجّل الأعداد.
+3. طبّق الترحيل.
+4. `verify_stock_integrity()` + قارن الأعداد بعد الترحيل.
+5. عند أي شك: `restore_business_data('<الاسم>', true)`.
+
+---
+
+## خامسًا: تناوب المفاتيح (بعد أي استخدام إداري)
+1. **Project Settings → Database → Reset database password**.
+2. **Project Settings → API → service_role → Rotate/Revoke**.
+3. حدّث `.db-admin.local` أو احذفه، وتأكد أن `git status` نظيف (لا أسرار في Git).

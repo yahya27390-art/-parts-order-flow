@@ -36,5 +36,9 @@ _*.txt
 _*.ps1
 *.tmp
 
+# Local secrets for direct database access (never commit)
+.db-admin.local
+backups/
+
 # Raw data exports used only as import sources
 بيانات كوريا/
