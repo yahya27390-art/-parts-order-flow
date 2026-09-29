@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useUpdatePurchaseOrder } from '@/features/orders/hooks';
 
 export default function EditPurchaseOrder() {
   const navigate = useNavigate();
@@ -47,7 +48,8 @@ export default function EditPurchaseOrder() {
   const [orderItems, setOrderItems] = useState([]);
   const [originalOrderItems, setOriginalOrderItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const updateOrder = useUpdatePurchaseOrder();
+  const saving = updateOrder.isPending;
   const [openCombobox, setOpenCombobox] = useState(null);
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -170,93 +172,11 @@ export default function EditPurchaseOrder() {
       }
     }
 
-    setSaving(true);
     try {
-      // Update order
-      await base44.entities.PurchaseOrder.update(orderId, {
-        ...orderData,
-        total_amount: calculateTotal()
-      });
-
-      // Process items
-      for (const item of orderItems) {
-        if (item.id) {
-          // Update existing item
-          const originalItem = originalOrderItems.find(o => o.id === item.id);
-          const quantityDiff = item.quantity_ordered - (originalItem?.quantity_ordered || 0);
-
-          await base44.entities.PurchaseOrderItem.update(item.id, {
-            item_id: item.item_id,
-            item_number: item.item_number,
-            item_name: item.item_name,
-            quantity_ordered: item.quantity_ordered,
-            unit_cost: item.unit_cost,
-            total_cost: item.quantity_ordered * item.unit_cost
-          });
-
-          // Update stock if quantity changed
-          if (quantityDiff !== 0) {
-            const itemData = await base44.entities.Item.filter({ id: item.item_id });
-            if (itemData[0]) {
-              const currentStock = itemData[0].current_stock || 0;
-              const pendingStock = itemData[0].pending_stock || 0;
-              await base44.entities.Item.update(item.item_id, {
-                current_stock: currentStock + quantityDiff,
-                pending_stock: pendingStock + quantityDiff
-              });
-            }
-          }
-        } else {
-          // Create new item
-          await base44.entities.PurchaseOrderItem.create({
-            order_id: orderId,
-            item_id: item.item_id,
-            item_number: item.item_number,
-            item_name: item.item_name,
-            quantity_ordered: item.quantity_ordered,
-            quantity_received: 0,
-            unit_cost: item.unit_cost,
-            total_cost: item.quantity_ordered * item.unit_cost
-          });
-
-          // Add to stock
-          const itemData = await base44.entities.Item.filter({ id: item.item_id });
-          if (itemData[0]) {
-            const currentStock = itemData[0].current_stock || 0;
-            const pendingStock = itemData[0].pending_stock || 0;
-            await base44.entities.Item.update(item.item_id, {
-              current_stock: currentStock + item.quantity_ordered,
-              pending_stock: pendingStock + item.quantity_ordered
-            });
-          }
-        }
-      }
-
-      // Delete removed items
-      for (const original of originalOrderItems) {
-        if (!orderItems.find(i => i.id === original.id)) {
-          await base44.entities.PurchaseOrderItem.delete(original.id);
-          
-          // Remove from stock
-          const itemData = await base44.entities.Item.filter({ id: original.item_id });
-          if (itemData[0]) {
-            const currentStock = itemData[0].current_stock || 0;
-            const pendingStock = itemData[0].pending_stock || 0;
-            await base44.entities.Item.update(original.item_id, {
-              current_stock: Math.max(0, currentStock - original.quantity_ordered),
-              pending_stock: Math.max(0, pendingStock - original.quantity_ordered)
-            });
-          }
-        }
-      }
-
-      toast.success('تم تحديث طلب الشراء بنجاح');
+      await updateOrder.mutateAsync({ orderId, order: orderData, items: orderItems });
       navigate(createPageUrl(`PurchaseOrderDetails?id=${orderId}`));
-    } catch (error) {
-      toast.error('حدث خطأ في تحديث الطلب');
-      console.error(error);
-    } finally {
-      setSaving(false);
+    } catch {
+      /* رسالة الخطأ تظهر من الـ hook */
     }
   };
 

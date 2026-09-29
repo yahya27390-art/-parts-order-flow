@@ -47,21 +47,26 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import AdminSettings from './pages/AdminSettings';
-import CreateGoodsReceipt from './pages/CreateGoodsReceipt';
-import CreatePurchaseOrder from './pages/CreatePurchaseOrder';
-import Dashboard from './pages/Dashboard';
-import EditGoodsReceipt from './pages/EditGoodsReceipt';
-import EditPurchaseOrder from './pages/EditPurchaseOrder';
-import GoodsReceiptDetails from './pages/GoodsReceiptDetails';
-import GoodsReceipts from './pages/GoodsReceipts';
-import Inventory from './pages/Inventory';
-import Items from './pages/Items';
-import PurchaseOrderDetails from './pages/PurchaseOrderDetails';
-import PurchaseOrders from './pages/PurchaseOrders';
-import Reports from './pages/Reports';
-import SelectOrderForReceipt from './pages/SelectOrderForReceipt';
-import __Layout from './Layout.jsx';
+import { lazy } from 'react';
+
+// ملاحظة: هذا الملف كان يُولَّد تلقائيًا من منصة Base44، والمشروع الآن مستقل
+// يعمل على Supabase، لذا يُدار يدويًا. الاستيراد هنا "كسول" (lazy) حتى لا
+// تُحمَّل كل الصفحات في الحزمة الأولى، فيقلّ زمن التحميل الأولي بشكل كبير.
+const AdminSettings = lazy(() => import('./pages/AdminSettings'));
+const CreateGoodsReceipt = lazy(() => import('./pages/CreateGoodsReceipt'));
+const CreatePurchaseOrder = lazy(() => import('./pages/CreatePurchaseOrder'));
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const EditGoodsReceipt = lazy(() => import('./pages/EditGoodsReceipt'));
+const EditPurchaseOrder = lazy(() => import('./pages/EditPurchaseOrder'));
+const GoodsReceiptDetails = lazy(() => import('./pages/GoodsReceiptDetails'));
+const GoodsReceipts = lazy(() => import('./pages/GoodsReceipts'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const Items = lazy(() => import('./pages/Items'));
+const PurchaseOrderDetails = lazy(() => import('./pages/PurchaseOrderDetails'));
+const PurchaseOrders = lazy(() => import('./pages/PurchaseOrders'));
+const Reports = lazy(() => import('./pages/Reports'));
+const SelectOrderForReceipt = lazy(() => import('./pages/SelectOrderForReceipt'));
+const __Layout = lazy(() => import('./Layout.jsx'));
 
 
 export const PAGES = {

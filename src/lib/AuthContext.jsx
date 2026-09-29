@@ -1,5 +1,6 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { supabase } from '@/api/supabaseClient';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
+import { supabase, getCurrentUser } from '@/api/supabaseClient';
+import { canWrite, isAdminRole } from '@/lib/labels';
 
 const AuthContext = createContext();
 
@@ -11,82 +12,90 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState(null);
 
-  useEffect(() => {
-    checkAuth();
-    if (!supabase) return undefined;
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setIsAuthenticated(Boolean(session?.user));
-      setAuthError(session?.user ? null : {
-        type: 'auth_required',
-        message: 'يرجى تسجيل الدخول باستخدام حساب Supabase'
-      });
+  const resolveAuthState = useCallback(async () => {
+    if (!supabase) {
+      setAuthError({ type: 'configuration_missing', message: 'إعدادات قاعدة البيانات غير مكتملة' });
       setIsLoadingAuth(false);
-    });
-    return () => listener.subscription.unsubscribe();
+      return;
+    }
+
+    setIsLoadingAuth(true);
+    try {
+      const currentUser = await getCurrentUser();
+
+      setUser(currentUser);
+      setIsAuthenticated(Boolean(currentUser));
+
+      if (!currentUser) {
+        setAuthError({ type: 'auth_required', message: 'يرجى تسجيل الدخول باستخدام حساب Supabase' });
+      } else if (currentUser.is_active === false) {
+        setAuthError({ type: 'user_not_active', message: 'حسابك غير مُفعَّل في النظام' });
+      } else {
+        setAuthError(null);
+      }
+    } catch (error) {
+      console.error('Authentication check failed:', error);
+      setAuthError({ type: 'unknown', message: error.message || 'An unexpected error occurred' });
+    } finally {
+      setIsLoadingAuth(false);
+    }
   }, []);
 
-  const checkAuth = async () => {
-    try {
-      if (!supabase) {
-        setAuthError({
-          type: 'configuration_missing',
-          message: 'إعدادات قاعدة البيانات غير مكتملة'
-        });
+  useEffect(() => {
+    resolveAuthState();
+    if (!supabase) return undefined;
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      // لا نستدعي Supabase داخل الـ callback مباشرة لتفادي الجمود (Deadlock).
+      if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setIsAuthenticated(false);
+        setAuthError({ type: 'auth_required', message: 'يرجى تسجيل الدخول باستخدام حساب Supabase' });
         setIsLoadingAuth(false);
         return;
       }
-      setAuthError(null);
-      setIsLoadingAuth(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setIsAuthenticated(Boolean(session?.user));
-      setAuthError(session?.user ? null : {
-        type: 'auth_required',
-        message: 'يرجى تسجيل الدخول باستخدام حساب Supabase'
-      });
-      setIsLoadingAuth(false);
-    } catch (error) {
-      console.error('Authentication check failed:', error);
-      setAuthError({
-        type: 'unknown',
-        message: error.message || 'An unexpected error occurred'
-      });
-      setIsLoadingAuth(false);
-    }
-  };
 
-  const logout = (shouldRedirect = true) => {
+      setTimeout(() => {
+        resolveAuthState();
+      }, 0);
+    });
+
+    return () => listener.subscription.unsubscribe();
+  }, [resolveAuthState]);
+
+  const logout = async (shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
-    
-    if (supabase) supabase.auth.signOut();
+
+    if (supabase) await supabase.auth.signOut();
     if (shouldRedirect) window.location.assign(import.meta.env.BASE_URL);
   };
 
   const navigateToLogin = () => {
-    setAuthError({
-      type: 'auth_required',
-      message: 'يرجى تسجيل الدخول باستخدام حساب Supabase'
-    });
+    setAuthError({ type: 'auth_required', message: 'يرجى تسجيل الدخول باستخدام حساب Supabase' });
   };
 
-  return (
-    <AuthContext.Provider value={{ 
-      user, 
-      isAuthenticated, 
+  const role = user?.role || null;
+
+  const value = useMemo(
+    () => ({
+      user,
+      role,
+      isAdmin: isAdminRole(role),
+      canWrite: canWrite(role),
+      isAuthenticated,
       isLoadingAuth,
       isLoadingPublicSettings,
       authError,
       appPublicSettings,
       logout,
       navigateToLogin,
-      checkAppState: checkAuth
-    }}>
-      {children}
-    </AuthContext.Provider>
+      checkAppState: resolveAuthState,
+    }),
+    [user, role, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError, appPublicSettings, resolveAuthState],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
@@ -96,3 +105,4 @@ export const useAuth = () => {
   }
   return context;
 };
+

@@ -18,57 +18,23 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FileDown, Printer, TrendingUp, TrendingDown, Scale, Package, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { summarizeDiscrepancies } from '@/features/reports/logic';
 
-export default function SupplierDiscrepanciesReport({ orders, orderItems }) {
-  const [selectedOrderId, setSelectedOrderId] = useState('');
+export default function SupplierDiscrepanciesReport({ orders = [], orderId = '', onOrderChange, rows = [] }) {
   const [hideComplete, setHideComplete] = useState(true);
 
-  const ordersWithItems = orders.filter(o =>
-    orderItems.some(oi => oi.order_id === o.id)
+  // القائمة والبيانات تصل من الأعلى (React Query) بدل تنزيل كل بنود الطلبات.
+  const selectedOrderId = orderId;
+  const setSelectedOrderId = (value) => onOrderChange?.(value);
+  const ordersWithItems = orders;
+  const selectedOrder = orders.find((order) => order.id === selectedOrderId);
+
+  const discrepancies = useMemo(
+    () => (rows || []).filter((row) => !hideComplete || row.status !== 'complete'),
+    [rows, hideComplete],
   );
 
-  const selectedOrder = orders.find(o => o.id === selectedOrderId);
-
-  const discrepancies = useMemo(() => {
-    if (!selectedOrderId) return [];
-    return orderItems
-      .filter(oi => oi.order_id === selectedOrderId)
-      .map(oi => {
-        const ordered = oi.quantity_ordered || 0;
-        const received = oi.quantity_received || 0;
-        const diff = received - ordered;
-        const unitCost = oi.unit_cost || 0;
-        return {
-          ...oi,
-          difference: diff,
-          value_difference: diff * unitCost,
-          status: diff > 0 ? 'excess' : diff < 0 ? 'shortage' : 'complete'
-        };
-      })
-      .filter(d => !hideComplete || d.status !== 'complete');
-  }, [selectedOrderId, orderItems, hideComplete]);
-
-  const totals = useMemo(() => {
-    const allItems = selectedOrderId
-      ? orderItems.filter(oi => oi.order_id === selectedOrderId).map(oi => {
-          const ordered = oi.quantity_ordered || 0;
-          const received = oi.quantity_received || 0;
-          const diff = received - ordered;
-          return { difference: diff, value_difference: diff * (oi.unit_cost || 0) };
-        })
-      : [];
-    const excessValue = allItems
-      .filter(d => d.difference > 0)
-      .reduce((sum, d) => sum + d.value_difference, 0);
-    const shortageValue = allItems
-      .filter(d => d.difference < 0)
-      .reduce((sum, d) => sum + d.value_difference, 0);
-    return {
-      excessValue,
-      shortageValue,
-      netBalance: excessValue + shortageValue
-    };
-  }, [selectedOrderId, orderItems]);
+  const totals = useMemo(() => summarizeDiscrepancies(rows || []), [rows]);
 
   const handlePrint = () => window.print();
 

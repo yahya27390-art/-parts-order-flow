@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { db as base44 } from '@/api/databaseClient';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import { useDashboardData } from '@/features/reports/hooks';
+import { useSettings } from '@/features/settings/hooks';
+import { getOrderStatusColor, getOrderStatusLabel } from '@/lib/labels';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Package, 
@@ -68,116 +70,42 @@ function KoreanFlag() {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState({
-    totalOrders: 0,
-    pendingOrders: 0,
+  const { data, isLoading } = useDashboardData();
+  const { data: systemSettings } = useSettings();
+
+  const loading = isLoading;
+
+  const stats = {
+    totalOrders: data?.stats.totalOrders ?? 0,
+    pendingOrders: data?.stats.openOrders ?? 0,
     totalReceipts: 0,
-    todayReceipts: 0,
-    totalItems: 0,
-    lowStockItems: 0,
-    inventoryValue: 0
-  });
-  const [recentOrders, setRecentOrders] = useState([]);
-  const [recentReceipts, setRecentReceipts] = useState([]);
-  const [overdueOrders, setOverdueOrders] = useState([]);
-  const [orderInsights, setOrderInsights] = useState({
-    statusData: [],
-    receiptData: [],
-    orderedQuantity: 0,
-    receivedQuantity: 0
-  });
-  const [loading, setLoading] = useState(true);
-  const [systemSettings, setSystemSettings] = useState(null);
-
-  useEffect(() => {
-    loadDashboardData();
-    loadSystemSettings();
-  }, []);
-
-  const loadSystemSettings = async () => {
-    try {
-      const settings = await base44.entities.SystemSettings.list();
-      setSystemSettings(settings[0] || null);
-    } catch (error) {
-      console.error('Error loading system settings:', error);
-    }
+    todayReceipts: data?.stats.receiptsToday ?? 0,
+    totalItems: data?.stats.totalItems ?? 0,
+    lowStockItems: data?.stats.lowStockItems ?? 0,
+    inventoryValue: data?.stats.inventoryValue ?? 0,
   };
 
-  const loadDashboardData = async () => {
-    try {
-      const [orders, receipts, items, orderItems] = await Promise.all([
-        base44.entities.PurchaseOrder.list('-created_date', 100),
-        base44.entities.GoodsReceipt.list('-created_date', 100),
-        base44.entities.Item.list(),
-        base44.entities.PurchaseOrderItem.list()
-      ]);
+  const recentOrders = data?.recentOrders ?? [];
+  const recentReceipts = data?.recentReceipts ?? [];
+  const overdueOrders = data?.overdueOrders ?? [];
 
-      const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'partial');
-      const lowStock = items.filter(i => (i.current_stock || 0) < 5);
-      const inventoryValue = items.reduce((sum, i) => sum + ((i.current_stock || 0) * (i.average_cost || 0)), 0);
-
-      // Today's receipts
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const todayReceipts = receipts.filter(r => new Date(r.receipt_date) >= today);
-
-      // Overdue/partial orders (older than 20 days)
-      const twentyDaysAgo = new Date();
-      twentyDaysAgo.setDate(twentyDaysAgo.getDate() - 20);
-      const overdue = orders.filter(o => 
-        (o.status === 'pending' || o.status === 'partial') && 
-        new Date(o.order_date) < twentyDaysAgo
-      );
-
-      setStats({
-        totalOrders: orders.length,
-        pendingOrders: pendingOrders.length,
-        totalReceipts: receipts.length,
-        todayReceipts: todayReceipts.length,
-        totalItems: items.length,
-        lowStockItems: lowStock.length,
-        inventoryValue
-      });
-
-      setRecentOrders(orders.slice(0, 5));
-      setRecentReceipts(receipts.slice(0, 5));
-      setOverdueOrders(overdue);
-      const statusLabels = {
-        pending: 'معلقة',
-        partial: 'جزئية',
-        completed: 'مكتملة',
-        cancelled: 'ملغاة'
-      };
-      const statusColors = {
-        pending: '#d4a853',
-        partial: '#4d82b8',
-        completed: '#2f8f6b',
-        cancelled: '#c45b5b'
-      };
-      const statusData = ['pending', 'partial', 'completed', 'cancelled']
-        .map(status => ({
-          name: statusLabels[status],
-          value: orders.filter(order => order.status === status).length,
-          color: statusColors[status]
-        }))
-        .filter(entry => entry.value > 0);
-      const orderedQuantity = orderItems.reduce((sum, item) => sum + Number(item.quantity_ordered || 0), 0);
-      const receivedQuantity = orderItems.reduce((sum, item) => sum + Number(item.quantity_received || 0), 0);
-      setOrderInsights({
-        statusData,
-        receiptData: [
-          { name: 'تم استلامه', value: receivedQuantity, color: '#2f8f6b' },
-          { name: 'متبقي', value: Math.max(orderedQuantity - receivedQuantity, 0), color: '#e2e8f0' }
-        ],
-        orderedQuantity,
-        receivedQuantity
-      });
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
-    } finally {
-      setLoading(false);
-    }
+  const orderInsights = {
+    statusData: (data?.insights?.statusData ?? []).map((entry) => ({
+      name: getOrderStatusLabel(entry.status),
+      value: entry.value,
+      color: getOrderStatusColor(entry.status),
+    })),
+    receiptData: [
+      { name: 'تم استلامه', value: data?.insights?.receivedQuantity ?? 0, color: '#2f8f6b' },
+      { name: 'متبقي', value: data?.insights?.remainingQuantity ?? 0, color: '#e2e8f0' },
+    ],
+    orderedQuantity: data?.insights?.orderedQuantity ?? 0,
+    receivedQuantity: data?.insights?.receivedQuantity ?? 0,
   };
+
+  // قراءة الإعدادات تتم عبر React Query (useSettings) داخل المكوّن.
+
+  // قراءة بيانات اللوحة تتم عبر React Query (useDashboardData) أعلى المكوّن.
 
   const statCards = [
     {

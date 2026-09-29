@@ -19,6 +19,7 @@ import { ArrowRight, Save, ClipboardList, AlertCircle } from 'lucide-react';
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useUpdateGoodsReceipt } from '@/features/receipts/hooks';
 
 export default function EditGoodsReceipt() {
   const navigate = useNavigate();
@@ -26,7 +27,8 @@ export default function EditGoodsReceipt() {
   const [receiptItems, setReceiptItems] = useState([]);
   const [originalItems, setOriginalItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const updateReceipt = useUpdateGoodsReceipt();
+  const saving = updateReceipt.isPending;
   const [user, setUser] = useState(null);
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -88,61 +90,16 @@ export default function EditGoodsReceipt() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    setSaving(true);
     try {
-      // Update receipt
-      await base44.entities.GoodsReceipt.update(receiptId, {
-        receipt_date: receipt.receipt_date,
-        notes: receipt.notes,
-        total_amount: calculateTotal(),
-        last_modified_by: user?.full_name || user?.email || '',
-        last_modified_at: new Date().toISOString()
+      await updateReceipt.mutateAsync({
+        receiptId,
+        receipt,
+        rows: receiptItems.map((row) => ({ ...row, quantity_to_receive: row.new_quantity })),
+        actorName: user?.full_name || user?.email || '',
       });
-
-      // Update each item and adjust stock
-      for (let i = 0; i < receiptItems.length; i++) {
-        const item = receiptItems[i];
-        const originalItem = originalItems[i];
-        const quantityDiff = (item.new_quantity || 0) - (originalItem.quantity_received || 0);
-
-        // Update receipt item
-        await base44.entities.GoodsReceiptItem.update(item.id, {
-          quantity_received: item.new_quantity,
-          total_cost: item.new_quantity * item.unit_cost
-        });
-
-        // Adjust stock based on difference (excess adds to available stock)
-        if (quantityDiff !== 0) {
-          const itemData = await base44.entities.Item.filter({ id: item.item_id });
-          if (itemData[0]) {
-            const currentStock = itemData[0].current_stock || 0;
-            // If quantity increased, deduct more from stock
-            // If quantity decreased, add back to stock
-            await base44.entities.Item.update(item.item_id, {
-              current_stock: currentStock - quantityDiff
-            });
-          }
-
-          // Update order item received quantity
-          if (item.order_item_id) {
-            const orderItemData = await base44.entities.PurchaseOrderItem.filter({ id: item.order_item_id });
-            if (orderItemData[0]) {
-              const currentReceived = orderItemData[0].quantity_received || 0;
-              await base44.entities.PurchaseOrderItem.update(item.order_item_id, {
-                quantity_received: Math.max(0, currentReceived + quantityDiff)
-              });
-            }
-          }
-        }
-      }
-
-      toast.success('تم تحديث إذن الاستلام بنجاح');
       navigate(createPageUrl(`GoodsReceiptDetails?id=${receiptId}`));
-    } catch (error) {
-      toast.error('حدث خطأ في تحديث الإذن');
-      console.error(error);
-    } finally {
-      setSaving(false);
+    } catch {
+      /* رسالة الخطأ تظهر من الـ hook */
     }
   };
 

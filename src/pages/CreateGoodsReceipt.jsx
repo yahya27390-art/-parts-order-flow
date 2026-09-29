@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { db as base44 } from '@/api/databaseClient';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,210 +27,96 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useAuth } from '@/lib/AuthContext';
+import { useOrderDetail } from '@/features/orders/hooks';
+import { useCreateGoodsReceipt } from '@/features/receipts/hooks';
+import { buildReceiptDraft, findRowIndexByItemNumber, summarizeReceiptDraft, updateDraftQuantity, incrementDraftQuantity } from '@/features/receipts/logic';
+import { toDateTimeInputValue } from '@/lib/format';
+import { generateReceiptNumber } from '@/lib/documentNumbers';
 
 export default function CreateGoodsReceipt() {
   const navigate = useNavigate();
-  const [order, setOrder] = useState(null);
-  const [orderItems, setOrderItems] = useState([]);
-  const [receiptData, setReceiptData] = useState({
-    receipt_number: '',
-    receipt_date: new Date().toISOString().slice(0, 16),
-    notes: ''
-  });
-  const [receiptItems, setReceiptItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [user, setUser] = useState(null);
-  const [barcodeInput, setBarcodeInput] = useState('');
-  const [showExcessConfirm, setShowExcessConfirm] = useState(false);
+  const { user } = useAuth();
 
   const urlParams = new URLSearchParams(window.location.search);
   const orderId = urlParams.get('order_id');
 
+  const { data: orderDetail, isLoading } = useOrderDetail(orderId);
+  const createReceipt = useCreateGoodsReceipt();
+
+  const order = orderDetail?.order ?? null;
+
+  const [receiptData, setReceiptData] = useState({
+    receipt_number: generateReceiptNumber(new Date()),
+    receipt_date: toDateTimeInputValue(new Date()),
+    notes: '',
+  });
+  const [receiptItems, setReceiptItems] = useState([]);
+  const [barcodeInput, setBarcodeInput] = useState('');
+  const [showExcessConfirm, setShowExcessConfirm] = useState(false);
+
   useEffect(() => {
-    if (orderId) {
-      loadOrderDetails();
-      generateReceiptNumber();
+    if (orderDetail?.items?.length) {
+      setReceiptItems(buildReceiptDraft(orderDetail.items));
     }
-    loadUser();
-  }, [orderId]);
+  }, [orderDetail]);
 
-  const loadUser = async () => {
-    try {
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
-    } catch (e) {}
-  };
+  const loading = Boolean(orderId) && isLoading;
+  const saving = createReceipt.isPending;
+  const summary = summarizeReceiptDraft(receiptItems);
 
-  const loadOrderDetails = async () => {
-    try {
-      const [orderData, itemsData] = await Promise.all([
-        base44.entities.PurchaseOrder.filter({ id: orderId }),
-        base44.entities.PurchaseOrderItem.filter({ order_id: orderId })
-      ]);
+  const updateReceiptItem = (index, quantity) =>
+    setReceiptItems((current) => updateDraftQuantity(current, index, quantity));
 
-      setOrder(orderData[0]);
-      setOrderItems(itemsData);
-      
-      // Initialize receipt items with remaining quantities
-      const initialItems = itemsData.map(item => ({
-        order_item_id: item.id,
-        item_id: item.item_id,
-        item_number: item.item_number,
-        item_name: item.item_name,
-        quantity_ordered: item.quantity_ordered,
-        quantity_received_before: item.quantity_received || 0,
-        remaining: item.quantity_ordered - (item.quantity_received || 0),
-        quantity_to_receive: 0,
-        unit_cost: item.unit_cost
-      }));
-      setReceiptItems(initialItems);
-    } catch (error) {
-      toast.error('حدث خطأ في تحميل بيانات الطلب');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateReceiptNumber = () => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    setReceiptData(prev => ({ ...prev, receipt_number: `GR-${year}${month}${day}-${random}` }));
-  };
-
-  const updateReceiptItem = (index, quantity) => {
-    const updated = [...receiptItems];
-    // السماح بأي كمية بما فيها الزائدة عن المطلوب
-    updated[index].quantity_to_receive = Math.max(0, quantity);
-    setReceiptItems(updated);
-  };
-
-  // Barcode / fast entry handler
-  const handleBarcodeSubmit = (e) => {
-    e.preventDefault();
+  // إدخال سريع بالباركود: كل قراءة تزيد الكمية بمقدار واحد.
+  const handleBarcodeSubmit = (event) => {
+    event.preventDefault();
     const code = barcodeInput.trim();
     if (!code) return;
 
-    const index = receiptItems.findIndex(item => 
-      item.item_number?.toLowerCase() === code.toLowerCase()
-    );
-
+    const index = findRowIndexByItemNumber(receiptItems, code);
     if (index === -1) {
       toast.error(`لم يتم العثور على صنف برقم: ${code}`);
       setBarcodeInput('');
       return;
     }
 
-    // Increment quantity for matched item
-    const updated = [...receiptItems];
-    updated[index].quantity_to_receive = (updated[index].quantity_to_receive || 0) + 1;
-    setReceiptItems(updated);
-    toast.success(`تم إضافة: ${updated[index].item_name}`);
+    setReceiptItems((current) => incrementDraftQuantity(current, index, 1));
+    toast.success(`تم إضافة: ${receiptItems[index].item_name}`);
     setBarcodeInput('');
   };
 
-  const calculateTotal = () => {
-    return receiptItems.reduce((sum, item) => sum + (item.quantity_to_receive * item.unit_cost), 0);
+  const calculateTotal = () => summary.totalAmount;
+  const hasItemsToReceive = () => summary.hasAnyQuantity;
+
+  const processReceipt = async () => {
+    try {
+      await createReceipt.mutateAsync({
+        orderId,
+        receipt: receiptData,
+        rows: receiptItems,
+        actorName: user?.full_name || user?.email || '',
+      });
+      navigate(createPageUrl('GoodsReceipts'));
+    } catch {
+      /* رسالة الخطأ تظهر من الـ hook */
+    }
   };
 
-  const hasItemsToReceive = () => {
-    return receiptItems.some(item => item.quantity_to_receive > 0);
-  };
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
-  const hasExcessItems = () => {
-    return receiptItems.some(item => item.quantity_to_receive > item.remaining);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!hasItemsToReceive()) {
+    if (!summary.hasAnyQuantity) {
       toast.error('يجب تحديد كمية لصنف واحد على الأقل');
       return;
     }
 
-    if (hasExcessItems()) {
+    if (summary.hasExcess) {
       setShowExcessConfirm(true);
       return;
     }
 
     await processReceipt();
-  };
-
-  const processReceipt = async () => {
-    setSaving(true);
-    try {
-      // Create goods receipt
-      const receipt = await base44.entities.GoodsReceipt.create({
-        ...receiptData,
-        order_id: orderId,
-        order_number: order.order_number,
-        total_amount: calculateTotal(),
-        last_modified_by: user?.full_name || user?.email || '',
-        last_modified_at: new Date().toISOString()
-      });
-
-      // Process each item - DEDUCT from stock
-      let allItemsCompleted = true;
-      for (const item of receiptItems) {
-        if (item.quantity_to_receive > 0) {
-          // Create receipt item
-          await base44.entities.GoodsReceiptItem.create({
-            receipt_id: receipt.id,
-            order_item_id: item.order_item_id,
-            item_id: item.item_id,
-            item_number: item.item_number,
-            item_name: item.item_name,
-            quantity_received: item.quantity_to_receive,
-            unit_cost: item.unit_cost,
-            total_cost: item.quantity_to_receive * item.unit_cost
-          });
-
-          // Update order item received quantity
-          const newReceived = item.quantity_received_before + item.quantity_to_receive;
-          await base44.entities.PurchaseOrderItem.update(item.order_item_id, {
-            quantity_received: newReceived
-          });
-
-          // Check if item is complete
-          if (newReceived < item.quantity_ordered) {
-            allItemsCompleted = false;
-          }
-
-          // Deduct normal portion from stock, ADD excess portion to available stock
-          const itemData = await base44.entities.Item.filter({ id: item.item_id });
-          if (itemData[0]) {
-            const currentStock = itemData[0].current_stock || 0;
-            const pendingStock = itemData[0].pending_stock || 0;
-            const normalPortion = Math.min(item.quantity_to_receive, item.remaining);
-            const excessPortion = Math.max(0, item.quantity_to_receive - item.remaining);
-
-            await base44.entities.Item.update(item.item_id, {
-              current_stock: currentStock - normalPortion + excessPortion,
-              pending_stock: Math.max(0, pendingStock - normalPortion)
-            });
-          }
-        } else if (item.remaining > 0) {
-          allItemsCompleted = false;
-        }
-      }
-
-      // Update order status
-      await base44.entities.PurchaseOrder.update(orderId, {
-        status: allItemsCompleted ? 'completed' : 'partial'
-      });
-
-      toast.success('تم تسجيل إذن الاستلام بنجاح');
-      navigate(createPageUrl('GoodsReceipts'));
-    } catch (error) {
-      toast.error('حدث خطأ في تسجيل الاستلام');
-      console.error(error);
-    } finally {
-      setSaving(false);
-    }
   };
 
   if (loading) {

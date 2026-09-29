@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { db as base44 } from '@/api/databaseClient';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,161 +14,85 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Plus, Trash2, ArrowRight, Save, Search, Check } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Save } from 'lucide-react';
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import ItemCombobox from '@/components/ItemCombobox';
+import { useCreatePurchaseOrder } from '@/features/orders/hooks';
+import { mergeDuplicateOrderItems } from '@/features/orders/logic';
+import { formatCurrency, toDateInputValue, toNumber } from '@/lib/format';
+import { generateOrderNumber } from '@/lib/documentNumbers';
+
+const EMPTY_ROW = { item_id: '', item_number: '', item_name: '', quantity_ordered: 1, unit_cost: 0 };
 
 export default function CreatePurchaseOrder() {
   const navigate = useNavigate();
-  const [items, setItems] = useState([]);
+  const createOrder = useCreatePurchaseOrder();
+
   const [orderData, setOrderData] = useState({
-    order_number: '',
-    order_date: new Date().toISOString().split('T')[0],
+    order_number: generateOrderNumber(new Date()),
+    order_date: toDateInputValue(new Date()),
     supplier_name: 'مورد كوري',
-    notes: ''
+    notes: '',
   });
   const [orderItems, setOrderItems] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [openCombobox, setOpenCombobox] = useState(null);
 
-  useEffect(() => {
-    loadItems();
-    generateOrderNumber();
-  }, []);
+  const saving = createOrder.isPending;
 
-  const loadItems = async () => {
-    try {
-      const data = await base44.entities.Item.list();
-      setItems(data);
-    } catch (error) {
-      toast.error('حدث خطأ في تحميل الأصناف');
-    }
-  };
+  const total = orderItems.reduce(
+    (sum, item) => sum + toNumber(item.quantity_ordered) * toNumber(item.unit_cost),
+    0,
+  );
 
-  const generateOrderNumber = () => {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-    setOrderData(prev => ({ ...prev, order_number: `PO-${year}${month}-${random}` }));
-  };
+  const addOrderItem = () => setOrderItems((current) => [...current, { ...EMPTY_ROW }]);
 
-  const addOrderItem = () => {
-    setOrderItems([...orderItems, {
-      item_id: '',
-      item_number: '',
-      item_name: '',
-      quantity_ordered: 1,
-      unit_cost: 0
-    }]);
-  };
+  /** اختيار صنف مع دمج السطور المكررة تلقائيًا في سطر واحد. */
+  const handleSelectItem = (index, selectedItem) => {
+    setOrderItems((current) => {
+      const next = current.map((row, position) =>
+        position === index
+          ? {
+              ...row,
+              item_id: selectedItem.id,
+              item_number: selectedItem.item_number,
+              item_name: selectedItem.item_name,
+              unit_cost: toNumber(selectedItem.cost),
+            }
+          : row,
+      );
 
-  const updateOrderItem = (index, field, value) => {
-    const updated = [...orderItems];
-    updated[index][field] = value;
-
-    if (field === 'item_id' && value) {
-      const selectedItem = items.find(i => i.id === value);
-      if (selectedItem) {
-        updated[index].item_number = selectedItem.item_number;
-        updated[index].item_name = selectedItem.item_name;
-        updated[index].unit_cost = selectedItem.cost || 0;
+      const duplicate = next.some((row, position) => position !== index && row.item_id === selectedItem.id);
+      if (duplicate) {
+        toast.warning(`الصنف "${selectedItem.item_name}" مكرر — تم دمج الكميات في سطر واحد`);
+        return mergeDuplicateOrderItems(next);
       }
-      // Check for duplicate item in other rows
-      const existingIndex = orderItems.findIndex((it, i) => i !== index && it.item_id === value);
-      if (existingIndex !== -1) {
-        toast.warning(`الصنف "${selectedItem?.item_name}" مكرر - سيتم دمجه مع الصنف الموجود وجمع الكميات`);
-        const mergedQuantity = (orderItems[existingIndex].quantity_ordered || 0) + (updated[index].quantity_ordered || 0);
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity_ordered: mergedQuantity
-        };
-        updated.splice(index, 1);
-        setOrderItems(updated);
-        return;
-      }
-    }
 
-    setOrderItems(updated);
+      return next;
+    });
   };
 
-  const removeOrderItem = (index) => {
-    setOrderItems(orderItems.filter((_, i) => i !== index));
-  };
+  const updateOrderItem = (index, field, value) =>
+    setOrderItems((current) =>
+      current.map((row, position) => (position === index ? { ...row, [field]: value } : row)),
+    );
 
-  const calculateTotal = () => {
-    return orderItems.reduce((sum, item) => sum + (item.quantity_ordered * item.unit_cost), 0);
-  };
+  const removeOrderItem = (index) =>
+    setOrderItems((current) => current.filter((_, position) => position !== index));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    const itemsToSave = mergeDuplicateOrderItems(orderItems).filter((item) => item.item_id);
     
-    if (orderItems.length === 0) {
+    if (itemsToSave.length === 0) {
       toast.error('يجب إضافة صنف واحد على الأقل');
       return;
     }
 
-    setSaving(true);
     try {
-      // Create order
-      const order = await base44.entities.PurchaseOrder.create({
-        ...orderData,
-        total_amount: calculateTotal(),
-        status: 'pending'
-      });
-
-      // Create order items and update stock
-      for (const item of orderItems) {
-        await base44.entities.PurchaseOrderItem.create({
-          order_id: order.id,
-          item_id: item.item_id,
-          item_number: item.item_number,
-          item_name: item.item_name,
-          quantity_ordered: item.quantity_ordered,
-          quantity_received: 0,
-          unit_cost: item.unit_cost,
-          total_cost: item.quantity_ordered * item.unit_cost
-        });
-
-        // Add to current stock when creating purchase order
-        const existingItem = items.find(i => i.id === item.item_id);
-        if (existingItem) {
-          const currentStock = existingItem.current_stock || 0;
-          const oldAvgCost = existingItem.average_cost || item.unit_cost;
-          
-          // Calculate new average cost
-          const totalOldValue = currentStock * oldAvgCost;
-          const totalNewValue = item.quantity_ordered * item.unit_cost;
-          const newTotalQty = currentStock + item.quantity_ordered;
-          const newAvgCost = newTotalQty > 0 ? (totalOldValue + totalNewValue) / newTotalQty : item.unit_cost;
-
-          await base44.entities.Item.update(item.item_id, {
-            current_stock: currentStock + item.quantity_ordered,
-            pending_stock: (existingItem.pending_stock || 0) + item.quantity_ordered,
-            average_cost: newAvgCost
-          });
-        }
-      }
-
-      toast.success('تم إنشاء طلب الشراء وإضافة الكميات للمخزون');
+      await createOrder.mutateAsync({ order: orderData, items: itemsToSave });
       navigate(createPageUrl('PurchaseOrders'));
-    } catch (error) {
-      toast.error('حدث خطأ في إنشاء الطلب');
-    } finally {
-      setSaving(false);
+    } catch {
+      /* رسالة الخطأ تظهر من الـ hook */
     }
   };
 
@@ -274,52 +197,11 @@ export default function CreatePurchaseOrder() {
                     {orderItems.map((item, index) => (
                       <TableRow key={index}>
                         <TableCell className="min-w-[250px]">
-                          <Popover open={openCombobox === index} onOpenChange={(open) => setOpenCombobox(open ? index : null)}>
-                            <PopoverTrigger asChild>
-                              <Button
-                                variant="outline"
-                                role="combobox"
-                                className="w-full justify-between"
-                              >
-                                {item.item_id 
-                                  ? items.find(i => i.id === item.item_id)?.item_name || 'اختر صنف'
-                                  : 'اختر صنف'}
-                                <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-[300px] p-0" align="start">
-                              <Command>
-                                <CommandInput placeholder="ابحث عن صنف..." className="text-right" />
-                                <CommandList>
-                                  <CommandEmpty>لا توجد نتائج</CommandEmpty>
-                                  <CommandGroup>
-                                    {items.map((i) => (
-                                      <CommandItem
-                                        key={i.id}
-                                        value={`${i.item_number} ${i.item_name}`}
-                                        onSelect={() => {
-                                          updateOrderItem(index, 'item_id', i.id);
-                                          setOpenCombobox(null);
-                                        }}
-                                        className="flex items-center justify-between"
-                                      >
-                                        <div className="flex flex-col">
-                                          <span>{i.item_name}</span>
-                                          <span dir="ltr" className="text-xs text-slate-500 font-mono" style={{ display: 'inline-block', textAlign: 'left' }}>{i.item_number}</span>
-                                        </div>
-                                        <Check
-                                          className={cn(
-                                            "h-4 w-4",
-                                            item.item_id === i.id ? "opacity-100" : "opacity-0"
-                                          )}
-                                        />
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                </CommandList>
-                              </Command>
-                            </PopoverContent>
-                          </Popover>
+                          <ItemCombobox
+                            value={item.item_id}
+                            valueLabel={item.item_name}
+                            onSelect={(selected) => handleSelectItem(index, selected)}
+                          />
                         </TableCell>
                         <TableCell><span dir="ltr" className="font-mono text-sm" style={{ display: 'inline-block', textAlign: 'left' }}>{item.item_number}</span></TableCell>
                         <TableCell>
@@ -341,7 +223,7 @@ export default function CreatePurchaseOrder() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">
-                          {(item.quantity_ordered * item.unit_cost).toFixed(2)} ر.س
+                          {formatCurrency(toNumber(item.quantity_ordered) * toNumber(item.unit_cost))}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -364,7 +246,7 @@ export default function CreatePurchaseOrder() {
             {orderItems.length > 0 && (
               <div className="flex justify-end mt-4 pt-4 border-t">
                 <div className="text-lg font-bold">
-                  الإجمالي: <span style={{ color: '#d4a853' }}>{calculateTotal().toFixed(2)} ر.س</span>
+                  الإجمالي: <span style={{ color: '#d4a853' }}>{formatCurrency(total)}</span>
                 </div>
               </div>
             )}

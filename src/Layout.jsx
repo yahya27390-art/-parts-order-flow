@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from './utils';
-import { db } from '@/api/databaseClient';
 import { 
   LayoutDashboard, 
   ShoppingCart, 
@@ -15,39 +14,15 @@ import {
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from '@/lib/AuthContext';
+import { useSettings } from '@/features/settings/hooks';
+import { ROLE_LABELS } from '@/lib/labels';
 
 export default function Layout({ children, currentPageName }) {
-  const [settings, setSettings] = useState(null);
-  const [user, setUser] = useState(null);
+  const { data: settings } = useSettings();
+  const { user, role, isAdmin, logout } = useAuth();
 
-  useEffect(() => {
-    loadSettings();
-    loadUser();
-  }, []);
-
-  const loadSettings = async () => {
-    try {
-      const settingsList = await db.entities.SystemSettings.list();
-      if (settingsList.length > 0) {
-        setSettings(settingsList[0]);
-      }
-    } catch (e) {
-      console.log('No settings found');
-    }
-  };
-
-  const loadUser = async () => {
-    try {
-      const currentUser = await db.auth.me();
-      setUser(currentUser);
-    } catch (e) {
-      console.log('User not logged in');
-    }
-  };
-
-  const handleLogout = () => {
-    db.auth.logout();
-  };
+  const handleLogout = () => logout();
 
   const navigationGroups = [
     {
@@ -80,12 +55,13 @@ export default function Layout({ children, currentPageName }) {
       id: 'admin',
       label: 'الإدارة',
       icon: ShieldCheck,
+      adminOnly: true,
       items: [
         { name: 'لوحة التحكم', href: createPageUrl('Dashboard'), icon: LayoutDashboard, page: 'Dashboard' },
         { name: 'الإعدادات', href: createPageUrl('AdminSettings'), icon: Settings, page: 'AdminSettings' },
       ]
     },
-  ];
+  ].filter((group) => !group.adminOnly || isAdmin);
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-100">
@@ -125,7 +101,9 @@ export default function Layout({ children, currentPageName }) {
             <div className="order-2 ml-auto flex items-center gap-2 lg:order-3">
               <div className="hidden text-left sm:block">
                 <p className="max-w-32 truncate text-xs font-semibold text-slate-700">{user.full_name}</p>
-                <p className="max-w-32 truncate text-[10px] text-slate-400">{user.email}</p>
+                <p className="max-w-32 truncate text-[10px] text-slate-400">
+                  {ROLE_LABELS[role] || user.email}
+                </p>
               </div>
               <Button variant="outline" size="icon" onClick={handleLogout} title="تسجيل الخروج">
                 <LogOut className="h-4 w-4" />

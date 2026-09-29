@@ -1,6 +1,7 @@
 #env
 .env
 .env.*
+!.env.example
 
 # Logs
 logs
@@ -29,3 +30,10 @@ dist-ssr
 
 .env
 base44/.app.jsonc
+
+# Temporary/scratch files
+_*.txt
+*.tmp
+
+# Raw data exports used only as import sources
+بيانات كوريا/

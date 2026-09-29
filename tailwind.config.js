@@ -40,7 +40,15 @@ module.exports = {
   				DEFAULT: 'hsl(var(--destructive))',
   				foreground: 'hsl(var(--destructive-foreground))'
   			},
-  			border: 'hsl(var(--border))',
+  			brand: {
+                DEFAULT: '#1e3a5f',
+                dark: '#152a45',
+                deep: '#102640',
+                mid: '#2d4a6f',
+                accent: '#d4a853',
+                'accent-dark': '#c79236'
+            },
+            border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
   			chart: {

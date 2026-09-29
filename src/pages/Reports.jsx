@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { db as base44 } from '@/api/databaseClient';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,51 +15,32 @@ import {
 import { FileDown, Printer, ClipboardList, Package, Filter, AlertCircle, Scale } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
 import SupplierDiscrepanciesReport from '@/components/SupplierDiscrepanciesReport';
+import { useInventoryReport, useNegativeStockReport, useReceiptsReport, useSupplierDiscrepancies } from '@/features/reports/hooks';
+import { useOrdersPage } from '@/features/orders/hooks';
+import { downloadCsv, csvFileStamp, csvNumber } from '@/lib/csv';
+import { formatCurrency, formatNumber, formatQuantity } from '@/lib/format';
 
 export default function Reports() {
-  const [receipts, setReceipts] = useState([]);
-  const [receiptItems, setReceiptItems] = useState([]);
-  const [items, setItems] = useState([]);
-  const [purchaseOrders, setPurchaseOrders] = useState([]);
-  const [purchaseOrderItems, setPurchaseOrderItems] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [discrepancyOrderId, setDiscrepancyOrderId] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const { data: receiptsReport, isLoading: loadingReceipts } = useReceiptsReport({ from: dateFrom, to: dateTo });
+  const { data: inventoryRows, isLoading: loadingInventory } = useInventoryReport();
+  const { data: negativeRows, isLoading: loadingNegative } = useNegativeStockReport();
+  const { data: ordersPage } = useOrdersPage({ pageSize: 100 });
+  const { data: discrepancyRows } = useSupplierDiscrepancies(discrepancyOrderId || null);
 
-  const loadData = async () => {
-    try {
-      const [receiptsData, receiptItemsData, itemsData, ordersData, orderItemsData] = await Promise.all([
-        base44.entities.GoodsReceipt.list('-receipt_date'),
-        base44.entities.GoodsReceiptItem.list(),
-        base44.entities.Item.list(),
-        base44.entities.PurchaseOrder.list('-created_date'),
-        base44.entities.PurchaseOrderItem.list()
-      ]);
-      setReceipts(receiptsData);
-      setReceiptItems(receiptItemsData);
-      setItems(itemsData);
-      setPurchaseOrders(ordersData);
-      setPurchaseOrderItems(orderItemsData);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const receipts = receiptsReport?.receipts ?? [];
+  const receiptItems = receiptsReport?.items ?? [];
+  const items = inventoryRows ?? [];
+  const negativeItems = negativeRows ?? [];
+  const purchaseOrders = ordersPage?.rows ?? [];
 
-  const filteredReceipts = receipts.filter(receipt => {
-    const receiptDate = new Date(receipt.receipt_date);
-    const fromDate = dateFrom ? new Date(dateFrom) : null;
-    const toDate = dateTo ? new Date(dateTo + 'T23:59:59') : null;
+  const loading = loadingReceipts || loadingInventory || loadingNegative;
 
-    if (fromDate && receiptDate < fromDate) return false;
-    if (toDate && receiptDate > toDate) return false;
-    return true;
-  });
+  // الفلترة الزمنية تتم على الخادم حسب الفترة المحددة.
+  const filteredReceipts = receipts;
 
   const getReceiptItems = (receiptId) => {
     return receiptItems.filter(item => item.receipt_id === receiptId);
@@ -70,35 +50,55 @@ export default function Reports() {
     window.print();
   };
 
-  const exportToCSV = (data, filename) => {
-    const headers = Object.keys(data[0] || {}).join(',');
-    const rows = data.map(row => Object.values(row).join(',')).join('\n');
-    const csv = `${headers}\n${rows}`;
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${filename}.csv`;
-    link.click();
-  };
-
   const exportReceiptsReport = () => {
-    const data = filteredReceipts.map(r => ({
-      'رقم الإذن': r.receipt_number,
-      'رقم الطلب': r.order_number,
-      'التاريخ': new Date(r.receipt_date).toLocaleString('ar-SA'),
-      'الإجمالي': r.total_amount
-    }));
-    exportToCSV(data, 'receipts_report');
+    downloadCsv(
+      `receipts-report-${csvFileStamp()}`,
+      filteredReceipts,
+      [
+        { key: 'receipt_number', label: 'رقم الإذن' },
+        { key: 'order_number', label: 'رقم الطلب' },
+        { key: 'receipt_date', label: 'التاريخ' },
+        { key: 'total_amount', label: 'الإجمالي' },
+      ],
+    );
   };
 
   const exportInventoryReport = () => {
-    const data = items.map(i => ({
-      'رقم الصنف': i.item_number,
-      'اسم الصنف': i.item_name,
-      'الرصيد': i.current_stock || 0,
-      'متوسط التكلفة': i.average_cost || 0
-    }));
-    exportToCSV(data, 'inventory_report');
+    downloadCsv(
+      `inventory-report-${csvFileStamp()}`,
+      items.map((item) => ({
+        item_number: item.item_number,
+        item_name: item.item_name,
+        available_stock: csvNumber(item.available_stock),
+        on_order_stock: csvNumber(item.on_order_stock),
+        average_cost: csvNumber(item.average_cost),
+        stock_value: csvNumber(item.stock_value),
+      })),
+      [
+        { key: 'item_number', label: 'رقم الصنف' },
+        { key: 'item_name', label: 'اسم الصنف' },
+        { key: 'available_stock', label: 'الرصيد المتاح' },
+        { key: 'on_order_stock', label: 'مخزون الطلبات' },
+        { key: 'average_cost', label: 'متوسط التكلفة' },
+        { key: 'stock_value', label: 'قيمة المخزون' },
+      ],
+    );
+  };
+
+  const exportNegativeStockReport = () => {
+    downloadCsv(
+      `negative-stock-${csvFileStamp()}`,
+      negativeItems.map((item) => ({
+        item_number: item.item_number,
+        item_name: item.item_name,
+        available_stock: csvNumber(item.available_stock),
+      })),
+      [
+        { key: 'item_number', label: 'رقم الصنف' },
+        { key: 'item_name', label: 'اسم الصنف' },
+        { key: 'available_stock', label: 'الرصيد' },
+      ],
+    );
   };
 
   if (loading) {
@@ -280,20 +280,20 @@ export default function Reports() {
                         <TableRow key={item.id}>
                           <TableCell><span dir="ltr" className="font-mono" style={{ display: 'inline-block', textAlign: 'left' }}>{item.item_number}</span></TableCell>
                           <TableCell>{item.item_name}</TableCell>
-                          <TableCell className="font-medium">{item.current_stock || 0}</TableCell>
-                          <TableCell>{(item.average_cost || 0).toFixed(2)} ر.س</TableCell>
+                          <TableCell className="font-medium">{formatQuantity(item.available_stock)}</TableCell>
+                          <TableCell>{formatCurrency(item.average_cost)}</TableCell>
                           <TableCell className="font-medium">
-                            {((item.current_stock || 0) * (item.average_cost || 0)).toFixed(2)} ر.س
+                            {formatCurrency(item.stock_value)}
                           </TableCell>
                         </TableRow>
                       ))}
                       {/* Total Row */}
                       <TableRow className="font-bold" style={{ backgroundColor: '#f8f9fa' }}>
                         <TableCell colSpan={2}>الإجمالي</TableCell>
-                        <TableCell>{items.reduce((sum, i) => sum + (i.current_stock || 0), 0)}</TableCell>
+                        <TableCell>{formatNumber(items.reduce((sum, i) => sum + Number(i.available_stock || 0), 0), 0)}</TableCell>
                         <TableCell>-</TableCell>
                         <TableCell style={{ color: '#d4a853' }}>
-                          {items.reduce((sum, i) => sum + ((i.current_stock || 0) * (i.average_cost || 0)), 0).toFixed(2)} ر.س
+                          {formatCurrency(items.reduce((sum, i) => sum + Number(i.stock_value || 0), 0))}
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -311,15 +311,7 @@ export default function Reports() {
               <Printer className="h-4 w-4 ml-2" />
               طباعة
             </Button>
-            <Button variant="outline" onClick={() => {
-              const negativeItems = items.filter(i => (i.current_stock || 0) < 0);
-              const data = negativeItems.map(i => ({
-                'رقم الصنف': i.item_number,
-                'اسم الصنف': i.item_name,
-                'الرصيد': i.current_stock || 0
-              }));
-              exportToCSV(data, 'negative_stock_report');
-            }}>
+            <Button variant="outline" onClick={exportNegativeStockReport}>
               <FileDown className="h-4 w-4 ml-2" />
               تصدير Excel
             </Button>
@@ -328,14 +320,14 @@ export default function Reports() {
           {/* Report Table */}
           <Card className="border-0 shadow-sm print:shadow-none">
             <CardHeader className="print:pb-2 border-b" style={{ backgroundColor: '#1e3a5f' }}>
-              <CardTitle className="text-lg text-white">تقرير الأصناف المستلمة بالسالب (زائدة عن الطلبات)</CardTitle>
+              <CardTitle className="text-lg text-white">تقرير الأرصدة السالبة (تحتاج مراجعة وتسوية)</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {items.filter(i => (i.current_stock || 0) < 0).length === 0 ? (
+              {negativeItems.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
                   <AlertCircle className="h-12 w-12 mx-auto mb-4 text-slate-300" />
                   <p>لا توجد أصناف برصيد سالب</p>
-                  <p className="text-sm mt-2">الأصناف السالبة هي التي تم استلامها بكميات زائدة عن طلبات الشراء</p>
+                  <p className="text-sm mt-2">الرصيد السالب يدل على خلل في البيانات ويجب تسويته من صفحة الأصناف</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -349,20 +341,20 @@ export default function Reports() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {items.filter(i => (i.current_stock || 0) < 0).map(item => (
+                      {negativeItems.map(item => (
                         <TableRow key={item.id}>
                           <TableCell><span dir="ltr" className="font-mono" style={{ display: 'inline-block', textAlign: 'left' }}>{item.item_number}</span></TableCell>
                           <TableCell>{item.item_name}</TableCell>
-                          <TableCell className="text-red-600 font-bold">{item.current_stock || 0}</TableCell>
-                          <TableCell className="font-bold" style={{ color: '#d4a853' }}>{Math.abs(item.current_stock || 0)}</TableCell>
+                          <TableCell className="text-red-600 font-bold">{formatQuantity(item.available_stock)}</TableCell>
+                          <TableCell className="font-bold" style={{ color: '#d4a853' }}>{formatQuantity(Math.abs(item.available_stock))}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                     <tfoot>
                       <tr className="font-bold" style={{ backgroundColor: '#f8f9fa' }}>
                         <td colSpan="2" className="p-3">الإجمالي</td>
-                        <td className="p-3 text-red-600">{items.filter(i => (i.current_stock || 0) < 0).reduce((sum, i) => sum + (i.current_stock || 0), 0)}</td>
-                        <td className="p-3" style={{ color: '#d4a853' }}>{Math.abs(items.filter(i => (i.current_stock || 0) < 0).reduce((sum, i) => sum + (i.current_stock || 0), 0))}</td>
+                        <td className="p-3 text-red-600">{formatQuantity(negativeItems.reduce((sum, i) => sum + Number(i.available_stock || 0), 0))}</td>
+                        <td className="p-3" style={{ color: '#d4a853' }}>{formatQuantity(Math.abs(negativeItems.reduce((sum, i) => sum + Number(i.available_stock || 0), 0)))}</td>
                       </tr>
                     </tfoot>
                   </Table>
@@ -374,7 +366,12 @@ export default function Reports() {
 
         {/* Supplier Discrepancies Report */}
         <TabsContent value="discrepancies" className="space-y-6">
-          <SupplierDiscrepanciesReport orders={purchaseOrders} orderItems={purchaseOrderItems} />
+          <SupplierDiscrepanciesReport
+            orders={purchaseOrders}
+            orderId={discrepancyOrderId}
+            onOrderChange={setDiscrepancyOrderId}
+            rows={discrepancyRows ?? []}
+          />
         </TabsContent>
       </Tabs>
     </div>

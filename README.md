@@ -1,41 +1,135 @@
-**Parts Order Flow**
+# نظام إدارة المخزون وطلبات الشراء — Parts Order Flow
 
-This project is an independent React application backed by Supabase PostgreSQL.
+تطبيق ويب لإدارة **مشتريات ومخزون قطع غيار السيارات (هيونداي / كيا)**، بواجهة عربية (RTL)
+يعمل على **React + Vite** مع خلفية **Supabase (PostgreSQL + Auth + Storage)**.
 
-**About**
+---
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+## المحتويات
 
-This project contains everything you need to run your app locally.
+- [المزايا الحالية](#المزايا-الحالية)
+- [التشغيل المحلي](#التشغيل-المحلي)
+- [متغيرات البيئة](#متغيرات-البيئة)
+- [بنية المشروع](#بنية-المشروع)
+- [قواعد المخزون المعتمدة](#قواعد-المخزون-المعتمدة)
+- [الاختبارات والجودة](#الاختبارات-والجودة)
+- [النشر](#النشر)
+- [قاعدة البيانات والترحيلات](#قاعدة-البيانات-والترحيلات)
+- [التوثيق](#التوثيق)
 
-**Edit the code in your local development environment**
+---
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+## المزايا الحالية
 
-**Prerequisites:** 
+| الوحدة | الوصف |
+|---|---|
+| لوحة التحكم | مؤشرات الطلبات المفتوحة، إذونات اليوم، قيمة المخزون، الطلبات المتأخرة (أكثر من ٢٠ يومًا) |
+| طلبات الشراء | إنشاء/تعديل/إلغاء/حذف، حالة تُحسب آليًا (معلق/جزئي/مكتمل/ملغي)، ترقيم تلقائي `PO-YYYYMM-0001` |
+| أذونات الاستلام | استلام كامل أو جزئي، إدخال سريع بالباركود، تأكيد الكميات الزائدة، إلغاء الإذن مع عكس أثره |
+| دليل الأصناف | إضافة/تعديل/حذف، فلترة بالماركة، **تسوية رصيد يدوية (جرد)**، سجل حركات لكل صنف |
+| المخزون | الرصيد المتاح ومخزون الطلبات وقيمة المخزون مع فلترة الحالة (متاح/منخفض/غير متوفر/سالب) |
+| التقارير | إذونات الاستلام بفلترة زمنية، المخزون، الأرصدة السالبة، **فروقات الموردين** (زيادة/نقص/صافي) |
+| الإعدادات | اسم النظام، الشعار، وإدارة **المستخدمين والأدوار** (مدير / أمين مستودع / قارئ) |
+| التصدير | CSV متوافق مع Excel العربي + طباعة A4 منسّقة للمستندات |
 
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+## التشغيل المحلي
+
+```bash
+git clone https://github.com/yahya27390-art/-parts-order-flow.git
+cd -parts-order-flow
+npm install
+cp .env.example .env.local   # ثم عدّل القيم بإعدادات مشروعك في Supabase
+npm run dev
+```
+
+## متغيرات البيئة
+
+أنشئ ملف `.env.local` (غير مُتتبَّع في Git):
 
 ```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
+VITE_SUPABASE_URL=https://<project-ref>.supabase.co
+VITE_SUPABASE_ANON_KEY=<anon-public-key>
 ```
 
-Run the app: `npm run dev`
+- مفاتيح `anon` عامة بطبيعتها ويُسمح بوجودها في حزمة الواجهة؛ الحماية الفعلية على القاعدة عبر RLS.
+- **لا تُضِف مفتاح `service_role` في الواجهة أو في Secrets الخاصة بالبناء إطلاقًا.**
 
-**Publish your changes**
+## بنية المشروع
 
-Open [Base44.com](http://Base44.com) and click on Publish.
+```
+src/
+├── api/                 # طبقة الاتصال: Supabase + معالجة الأخطاء + استعلامات مجمّعة
+│   ├── supabaseClient.js   # عميل Supabase، واجهة الكيانات، RPC، التخزين
+│   ├── databaseClient.js   # إعادة تصدير متوافقة
+│   └── errors.js           # ترجمة أخطاء القاعدة إلى رسائل عربية
+├── features/            # وحدات الأعمال (منطق نقي + طبقة بيانات + hooks)
+│   ├── orders/             # logic.js (قابل للاختبار) + api.js + hooks.js
+│   ├── receipts/
+│   ├── inventory/
+│   ├── items/
+│   ├── reports/
+│   └── settings/
+├── components/          # مكوّنات مشتركة (App) + components/ui (shadcn)
+├── hooks/               # useListParams (بحث مؤجّل + ترقيم)
+├── lib/                 # أدوات: format, csv, labels, schemas, documentNumbers, AuthContext
+├── pages/               # صفحات التطبيق (تُحمَّل بشكل كسول)
+└── pages.config.js      # تسجيل الصفحات (lazy)
+supabase/migrations/     # ترحيلات قاعدة البيانات (المصدر الرسمي للمخطط)
+docs/                    # التوثيق الفني
+```
 
-**Docs & Support**
+## قواعد المخزون المعتمدة
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
+> هذه القواعد هي المصدر الرسمي، ومطبَّقة في دوال قاعدة البيانات وفي `features/*/logic.js`
+> ومغطّاة باختبارات في `*.test.js`.
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+1. **الرصيد المتاح (`items.current_stock`)** يزيد عند **الاستلام الفعلي فقط**، ولا يتغيّر عند إنشاء طلب شراء.
+2. **مخزون الطلبات (`items.pending_stock`)** = الكميات المطلوبة وغير المستلمة في الطلبات المفتوحة.
+3. الكمية **الزائدة** عن المطلوب تُضاف كاملة إلى الرصيد المتاح وتُسجَّل كحركة `receipt_excess` منفصلة.
+4. **متوسط التكلفة** = متوسط مرجّح للكميات الداخلة (يُحسب من الحركات، لا من الحالة اللحظية).
+5. **حالة الطلب** تُحسب دائمًا من بنوده: مكتمل عندما `quantity_received >= quantity_ordered` لكل بند.
+6. **كل تغيير في الرصيد يُسجَّل في `stock_movements`** (دفتر الحركات) — وهو سجل التدقيق الرسمي.
+7. الحذف النهائي محظور إن كان للمستند أثر (إذن له كميات مستلمة، أو طلب له إذونات) → يُستخدم **الإلغاء** (`void`) الذي يعكس الأثر.
+
+## الاختبارات والجودة
+
+```bash
+npm run lint        # ESLint (بدون أخطاء حاليًا)
+npm run test        # اختبارات منطق الأعمال (Node test runner، بلا اعتماديات إضافية)
+npm run build       # بناء الإنتاج
+npm run check       # lint + test + build معًا قبل الرفع
+```
+
+تغطي الاختبارات: تقسيم الكميات (مطلوب/زائد)، متوسط التكلفة، أحوال المخزون، حالة الطلب،
+دمج الأصناف المكررة، مسودة الاستلام وإدخال الباركود، فروقات الموردين، وتصدير CSV الآمن.
+
+## النشر
+
+النشر تلقائي إلى **GitHub Pages** عبر `.github/workflows/deploy-pages.yml` عند كل دفعة إلى `main`
+(خطوات: تثبيت → تحقق (lint + test) → بناء → نشر)، مع `dist/404.html` لدعم الروابط المباشرة.
+
+المطلوب في المستودع: `Settings → Secrets and variables → Actions`:
+`VITE_SUPABASE_URL` و `VITE_SUPABASE_ANON_KEY`.
+
+## قاعدة البيانات والترحيلات
+
+| الملف | الوصف |
+|---|---|
+| `20260911170000_initial_schema.sql` | المخطط الأساسي (الجداول والفهارس وسياسات RLS الأولى) |
+| `20260911183000_create_app_assets_storage.sql` | مجلد التخزين للشعارات |
+| `20260911184500_import_korea_data.sql` | استيراد بيانات الأصناف من النظام السابق |
+| `20260912120000_stock_ledger_atomic_operations.sql` | دفتر حركات المخزون + ترقيم المستندات + عمليات ذرية + عروض تجميع + ترحيل الأرصدة |
+| `20260912121000_profiles_roles_and_rls.sql` | جدول المستخدمين والأدوار + سياسات RLS والأدوار + تشديد التخزين |
+
+**ترتيب التطبيق إلزامي.** طريقة التطبيق موضّحة في `docs/DATABASE.md`.
+التطبيق يسلك تلقائيًا مسارًا بديلًا مكافئًا إذا لم تكن الترحيلات الجديدة مطبَّقة بعد، فلن يتعطّل النظام،
+لكنه لن يستفيد من الذرّية الكاملة ولا من الأدوار والأمان.
+
+## التوثيق
+
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — البنية والقرارات التقنية
+- [`docs/INVENTORY_MODEL.md`](docs/INVENTORY_MODEL.md) — نموذج المخزون والقواعد المحاسبية
+- [`docs/DATABASE.md`](docs/DATABASE.md) — تطبيق الترحيلات والدوال المتاحة والصيانة
+- [`docs/CONTRIBUTING.md`](docs/CONTRIBUTING.md) — قواعد المساهمة وسير العمل
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — خطة التطوير القادمة
+

@@ -1,90 +1,111 @@
-import React, { useState, useEffect } from 'react';
-import { db } from '@/api/databaseClient';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Settings, Upload, Save, Image } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Settings, Upload, Save, Image, Users } from 'lucide-react';
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from '@/lib/AuthContext';
+import { useDeleteLogoFile, useSaveSettings, useSettings, useUploadLogo } from '@/features/settings/hooks';
+import { db } from '@/api/supabaseClient';
+import { getErrorMessage } from '@/api/errors';
+import { ROLE_DESCRIPTIONS, ROLE_LABELS } from '@/lib/labels';
+import { formatDate } from '@/lib/format';
+
+const DEFAULT_SETTINGS = {
+  system_name: 'نظام إدارة المخزون',
+  logo_url: '',
+  show_logo_interface: true,
+  show_logo_reports: true,
+  show_logo_print: true,
+};
+
+const ROLE_OPTIONS = ['admin', 'storekeeper', 'viewer'];
 
 export default function AdminSettings() {
-  const [settings, setSettings] = useState({
-    system_name: 'نظام إدارة المخزون',
-    logo_url: '',
-    show_logo_interface: true,
-    show_logo_reports: true,
-    show_logo_print: true
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [settingsId, setSettingsId] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const { isAdmin } = useAuth();
+  const { data: savedSettings, isLoading } = useSettings();
+  const saveSettings = useSaveSettings();
+  const uploadLogo = useUploadLogo();
+  const deleteLogoFile = useDeleteLogoFile();
+
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
-    loadSettings();
-  }, []);
+    if (savedSettings) setSettings({ ...DEFAULT_SETTINGS, ...savedSettings });
+  }, [savedSettings]);
 
-  const loadSettings = async () => {
-    try {
-      const data = await db.entities.SystemSettings.list();
-      if (data.length > 0) {
-        setSettings(data[0]);
-        setSettingsId(data[0].id);
+  useEffect(() => {
+    const loadUsers = async () => {
+      if (!isAdmin) return;
+      try {
+        const result = await db.profiles.list({ pageSize: 100 });
+        setUsers(result.rows ?? []);
+      } catch (error) {
+        toast.error(getErrorMessage(error, 'تعذّر تحميل المستخدمين — تأكد من تطبيق ترحيل المستخدمين والأدوار'));
       }
-    } catch (error) {
-      console.error('Error loading settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    loadUsers();
+  }, [isAdmin]);
 
   const handleSave = async () => {
-    setSaving(true);
     try {
-      if (settingsId) {
-        await db.entities.SystemSettings.update(settingsId, settings);
-      } else {
-        const newSettings = await db.entities.SystemSettings.create(settings);
-        setSettingsId(newSettings.id);
-      }
-      toast.success('تم حفظ الإعدادات بنجاح');
-      // Reload to apply changes
-      window.location.reload();
-    } catch (error) {
-      toast.error('حدث خطأ في حفظ الإعدادات');
-    } finally {
-      setSaving(false);
+      await saveSettings.mutateAsync({ ...settings, id: savedSettings?.id });
+    } catch {
+      /* رسالة الخطأ تظهر من الـ hook */
     }
   };
 
-  const handleLogoUpload = async (e) => {
-    const file = e.target.files[0];
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      toast.error('يرجى اختيار ملف صورة');
-      return;
-    }
-
-    setUploading(true);
     try {
-      if (file.size > 2 * 1024 * 1024) {
-        throw new Error('حجم الصورة يجب ألا يتجاوز 2 ميجابايت');
-      }
-
-      const logoUrl = await db.storage.uploadLogo(file);
+      const previousUrl = settings.logo_url;
+      const logoUrl = await uploadLogo.mutateAsync(file);
       setSettings((current) => ({ ...current, logo_url: logoUrl }));
-      toast.success('تم رفع اللوجو بنجاح');
-    } catch (error) {
-      toast.error('حدث خطأ في رفع الصورة');
+
+      // حذف ملف الشعار القديم حتى لا تتراكم الملفات في التخزين.
+      if (previousUrl && previousUrl !== logoUrl) {
+        deleteLogoFile.mutate(previousUrl);
+      }
+    } catch {
+      /* رسالة الخطأ تظهر من الـ hook */
     } finally {
-      setUploading(false);
+      if (event.target) event.target.value = '';
     }
   };
 
-  if (loading) {
+  const handleRoleChange = async (userId, role) => {
+    try {
+      await db.profiles.updateRole(userId, role);
+      setUsers((current) => current.map((item) => (item.id === userId ? { ...item, role } : item)));
+      toast.success('تم تحديث صلاحية المستخدم');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'تعذّر تحديث الصلاحية'));
+    }
+  };
+
+  const handleActiveToggle = async (userId, isActive) => {
+    try {
+      await db.profiles.setActive(userId, isActive);
+      setUsers((current) => current.map((item) => (item.id === userId ? { ...item, is_active: isActive } : item)));
+      toast.success(isActive ? 'تم تفعيل الحساب' : 'تم إيقاف الحساب');
+    } catch (error) {
+      toast.error(getErrorMessage(error, 'تعذّر تحديث حالة الحساب'));
+    }
+  };
+
+  const saving = saveSettings.isPending;
+  const uploading = uploadLogo.isPending;
+
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-48" />
@@ -207,6 +228,80 @@ export default function AdminSettings() {
           </div>
         </CardContent>
       </Card>
+
+      {/* المستخدمون والصلاحيات (للمدير فقط) */}
+      {isAdmin ? (
+        <Card className="border-0 shadow-sm">
+          <CardHeader className="border-b" style={{ backgroundColor: '#1e3a5f' }}>
+            <CardTitle className="text-lg flex items-center gap-2 text-white">
+              <Users className="h-5 w-5" />
+              المستخدمون والصلاحيات
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {users.length === 0 ? (
+              <div className="py-10 text-center text-sm text-slate-500">
+                لا يوجد مستخدمون مسجّلون بعد. يظهر هنا كل من يسجّل حسابًا في النظام.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50">
+                      <TableHead className="text-right">المستخدم</TableHead>
+                      <TableHead className="text-right">البريد الإلكتروني</TableHead>
+                      <TableHead className="text-right">الدور</TableHead>
+                      <TableHead className="text-right">الحالة</TableHead>
+                      <TableHead className="text-right">تاريخ الإضافة</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((profileUser) => (
+                      <TableRow key={profileUser.id}>
+                        <TableCell className="font-medium">{profileUser.full_name || '-'}</TableCell>
+                        <TableCell dir="ltr" className="text-left text-xs text-slate-500">
+                          {profileUser.email || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={profileUser.role}
+                            onValueChange={(value) => handleRoleChange(profileUser.id, value)}
+                          >
+                            <SelectTrigger className="w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ROLE_OPTIONS.map((roleValue) => (
+                                <SelectItem key={roleValue} value={roleValue} title={ROLE_DESCRIPTIONS[roleValue]}>
+                                  {ROLE_LABELS[roleValue]}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={Boolean(profileUser.is_active)}
+                              onCheckedChange={(checked) => handleActiveToggle(profileUser.id, checked)}
+                            />
+                            <span className="text-xs text-slate-500">
+                              {profileUser.is_active ? 'مُفعَّل' : 'موقوف'}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs text-slate-500">
+                          {formatDate(profileUser.created_date)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Save Button */}
       <div className="flex justify-end">

@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { db as base44 } from '@/api/databaseClient';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,45 +14,17 @@ import {
 } from "@/components/ui/table";
 import { ArrowRight, Search, ShoppingCart, ArrowLeft, Eye } from 'lucide-react';
 import { Skeleton } from "@/components/ui/skeleton";
+import StatusBadge from '@/components/StatusBadge';
+import { useOpenOrders } from '@/features/orders/hooks';
+import { formatCurrency, formatDate } from '@/lib/format';
 
 export default function SelectOrderForReceipt() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    loadOrders();
-  }, []);
-
-  const loadOrders = async () => {
-    try {
-      const data = await base44.entities.PurchaseOrder.list('-created_date');
-      // Filter only pending or partial orders
-      const pendingOrders = data.filter(o => o.status === 'pending' || o.status === 'partial');
-      setOrders(pendingOrders);
-    } catch (error) {
-      console.error('Error loading orders:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getStatusBadge = (status) => {
-    const styles = {
-      pending: 'bg-amber-50 text-amber-700 border-amber-200',
-      partial: 'bg-blue-50 text-blue-700 border-blue-200'
-    };
-    const labels = {
-      pending: 'معلق',
-      partial: 'جزئي'
-    };
-    return (
-      <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${styles[status] || styles.pending}`}>
-        {labels[status] || status}
-      </span>
-    );
-  };
+  const { data, isLoading } = useOpenOrders();
+  const orders = data?.rows ?? [];
+  const loading = isLoading;
 
   const filteredOrders = orders.filter(order =>
     order.order_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -123,10 +94,10 @@ export default function SelectOrderForReceipt() {
                   {filteredOrders.map(order => (
                     <TableRow key={order.id} className="hover:bg-slate-50">
                       <TableCell className="font-medium">{order.order_number}</TableCell>
-                      <TableCell>{new Date(order.order_date).toLocaleDateString('ar-SA')}</TableCell>
+                      <TableCell>{formatDate(order.order_date)}</TableCell>
                       <TableCell>{order.supplier_name}</TableCell>
-                      <TableCell style={{ color: '#d4a853' }} className="font-medium">{(order.total_amount || 0).toFixed(2)} ر.س</TableCell>
-                      <TableCell>{getStatusBadge(order.status)}</TableCell>
+                      <TableCell style={{ color: '#d4a853' }} className="font-medium">{formatCurrency(order.total_amount)}</TableCell>
+                      <TableCell><StatusBadge type="order" status={order.status} /></TableCell>
                       <TableCell>
                         <div className="flex items-center justify-center gap-2">
                           <Link to={createPageUrl(`PurchaseOrderDetails?id=${order.id}`)}>
