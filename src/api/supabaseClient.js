@@ -36,6 +36,9 @@ export const VIEWS = {
 
 export const DEFAULT_PAGE_SIZE = 25;
 export const MAX_PAGE_SIZE = 200;
+// حجم صفحة المسح الداخلي: القياس الفعلي أظهر أن كلفة الطلب لا تتأثر بحجم الصفوف
+// (200 صف ≈ 1000 صف ≈ 300ms)، فالأفضل طلب أكبر عدد ممكن في كل طلب (حد Supabase 1000).
+export const SCAN_PAGE_SIZE = 1000;
 
 export const requireSupabase = () => {
   if (!supabase) throw new SupabaseConfigurationError();
@@ -145,19 +148,36 @@ export const selectRows = async (
   };
 };
 
-/** قراءة كل الصفوف المطابقة على دفعات (للتقارير المجمّعة الصغيرة). */
+/**
+ * قراءة كل الصفوف المطابقة على دفعات، مع جلب الدفعات المتبقية **بالتوازي**
+ * بعد معرفة العدد الإجمالي من أول طلب (بدل حلقة متسلسلة تكلّف 300ms لكل صفحة).
+ */
 export const selectAllRows = async (source, options = {}) => {
-  const pages = [];
-  let page = 1;
-  let result;
+  const first = await selectRows(source, {
+    ...options,
+    page: 1,
+    pageSize: SCAN_PAGE_SIZE,
+    withCount: true,
+  });
 
-  do {
-    result = await selectRows(source, { ...options, page, pageSize: MAX_PAGE_SIZE, withCount: false });
-    pages.push(...result.rows);
-    page += 1;
-  } while (result.rows.length === MAX_PAGE_SIZE && page <= 20);
+  const total = typeof first.total === 'number' ? first.total : first.rows.length;
+  if (first.rows.length < SCAN_PAGE_SIZE || total <= SCAN_PAGE_SIZE) {
+    return first.rows;
+  }
 
-  return pages;
+  const pagesCount = Math.min(Math.ceil(total / SCAN_PAGE_SIZE), 20);
+  const remaining = await Promise.all(
+    Array.from({ length: pagesCount - 1 }, (_, index) =>
+      selectRows(source, {
+        ...options,
+        page: index + 2,
+        pageSize: SCAN_PAGE_SIZE,
+        withCount: false,
+      }),
+    ),
+  );
+
+  return remaining.reduce((all, page) => all.concat(page.rows), first.rows);
 };
 
 /**

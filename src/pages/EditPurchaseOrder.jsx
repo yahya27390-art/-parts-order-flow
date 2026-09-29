@@ -15,29 +15,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Plus, Trash2, ArrowRight, Save, Search, Check, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, ArrowRight, Save, AlertCircle } from 'lucide-react';
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import ItemCombobox from '@/components/ItemCombobox';
 import { useUpdatePurchaseOrder } from '@/features/orders/hooks';
+import { toNumber } from '@/lib/format';
 
 export default function EditPurchaseOrder() {
   const navigate = useNavigate();
-  const [items, setItems] = useState([]);
   const [order, setOrder] = useState(null);
   const [orderData, setOrderData] = useState({
     order_number: '',
@@ -50,7 +37,6 @@ export default function EditPurchaseOrder() {
   const [loading, setLoading] = useState(true);
   const updateOrder = useUpdatePurchaseOrder();
   const saving = updateOrder.isPending;
-  const [openCombobox, setOpenCombobox] = useState(null);
 
   const urlParams = new URLSearchParams(window.location.search);
   const orderId = urlParams.get('id');
@@ -63,14 +49,11 @@ export default function EditPurchaseOrder() {
 
   const loadData = async () => {
     try {
-      const [itemsData, orderData, orderItemsData] = await Promise.all([
-        base44.entities.Item.list(),
+      const [orderData, orderItemsData] = await Promise.all([
         base44.entities.PurchaseOrder.filter({ id: orderId }),
         base44.entities.PurchaseOrderItem.filter({ order_id: orderId })
       ]);
 
-      setItems(itemsData);
-      
       if (orderData[0]) {
         setOrder(orderData[0]);
         setOrderData({
@@ -101,47 +84,46 @@ export default function EditPurchaseOrder() {
     }
   };
 
-  const addOrderItem = () => {
-    setOrderItems([...orderItems, {
-      id: null,
-      item_id: '',
-      item_number: '',
-      item_name: '',
-      quantity_ordered: 1,
-      quantity_received: 0,
-      unit_cost: 0,
-      original_quantity: 0
-    }]);
+  const addOrderItem = () =>
+    setOrderItems((current) => [
+      ...current,
+      {
+        id: null,
+        item_id: '',
+        item_number: '',
+        item_name: '',
+        quantity_ordered: 1,
+        quantity_received: 0,
+        unit_cost: 0,
+        original_quantity: 0,
+      },
+    ]);
+
+  /** اختيار صنف بالبحث على الخادم (بدل تنزيل الدليل كاملًا). */
+  const handleSelectItem = (index, selectedItem) => {
+    setOrderItems((current) => {
+      const duplicate = current.some((row, position) => position !== index && row.item_id === selectedItem.id);
+      if (duplicate) {
+        toast.warning(`الصنف "${selectedItem.item_name}" موجود مسبقًا في هذا الطلب — عدّل كميته في سطره بدل تكراره`);
+        return current;
+      }
+
+      return current.map((row, position) =>
+        position === index
+          ? {
+              ...row,
+              item_id: selectedItem.id,
+              item_number: selectedItem.item_number,
+              item_name: selectedItem.item_name,
+              unit_cost: toNumber(selectedItem.cost),
+            }
+          : row,
+      );
+    });
   };
 
-  const updateOrderItem = (index, field, value) => {
-    const updated = [...orderItems];
-    updated[index][field] = value;
-
-    if (field === 'item_id' && value) {
-      const selectedItem = items.find(i => i.id === value);
-      if (selectedItem) {
-        updated[index].item_number = selectedItem.item_number;
-        updated[index].item_name = selectedItem.item_name;
-        updated[index].unit_cost = selectedItem.cost || 0;
-      }
-      // Check for duplicate item in other rows
-      const existingIndex = orderItems.findIndex((it, i) => i !== index && it.item_id === value);
-      if (existingIndex !== -1) {
-        toast.warning(`الصنف "${selectedItem?.item_name}" مكرر - سيتم دمجه مع الصنف الموجود وجمع الكميات`);
-        const mergedQuantity = (orderItems[existingIndex].quantity_ordered || 0) + (updated[index].quantity_ordered || 0);
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity_ordered: mergedQuantity
-        };
-        updated.splice(index, 1);
-        setOrderItems(updated);
-        return;
-      }
-    }
-
-    setOrderItems(updated);
-  };
+  const updateOrderItem = (index, field, value) =>
+    setOrderItems((current) => current.map((row, position) => (position === index ? { ...row, [field]: value } : row)));
 
   const removeOrderItem = (index) => {
     const item = orderItems[index];
@@ -301,53 +283,12 @@ export default function EditPurchaseOrder() {
                   {orderItems.map((item, index) => (
                     <TableRow key={index}>
                       <TableCell className="min-w-[250px]">
-                        <Popover open={openCombobox === index} onOpenChange={(open) => setOpenCombobox(open ? index : null)}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className="w-full justify-between"
-                              disabled={item.quantity_received > 0}
-                            >
-                              {item.item_id 
-                                ? items.find(i => i.id === item.item_id)?.item_name || 'اختر صنف'
-                                : 'اختر صنف'}
-                              <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-[300px] p-0" align="start">
-                            <Command>
-                              <CommandInput placeholder="ابحث عن صنف..." className="text-right" />
-                              <CommandList>
-                                <CommandEmpty>لا توجد نتائج</CommandEmpty>
-                                <CommandGroup>
-                                  {items.map((i) => (
-                                    <CommandItem
-                                      key={i.id}
-                                      value={`${i.item_number} ${i.item_name}`}
-                                      onSelect={() => {
-                                        updateOrderItem(index, 'item_id', i.id);
-                                        setOpenCombobox(null);
-                                      }}
-                                      className="flex items-center justify-between"
-                                    >
-                                      <div className="flex flex-col">
-                                        <span>{i.item_name}</span>
-                                        <span className="text-xs text-slate-500" dir="ltr" style={{ textAlign: 'left' }}>{i.item_number}</span>
-                                      </div>
-                                      <Check
-                                        className={cn(
-                                          "h-4 w-4",
-                                          item.item_id === i.id ? "opacity-100" : "opacity-0"
-                                        )}
-                                      />
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                        <ItemCombobox
+                          value={item.item_id}
+                          valueLabel={item.item_name}
+                          disabled={item.quantity_received > 0}
+                          onSelect={(selected) => handleSelectItem(index, selected)}
+                        />
                       </TableCell>
                       <TableCell>
                         <span dir="ltr" style={{ display: 'inline-block', textAlign: 'left' }}>{item.item_number}</span>

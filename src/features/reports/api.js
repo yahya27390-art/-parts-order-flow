@@ -4,24 +4,18 @@
  * تعتمد على عروض التجميع (v_order_fulfillment / v_inventory) وعلى العدّاد
  * count (head-only) بدل تنزيل الجداول كاملة إلى المتصفح.
  */
-import { db, TABLES, VIEWS, selectAllRows, withColumnFallback } from '@/api/supabaseClient';
+import { db, TABLES, VIEWS, selectRows, selectAllRows, callRpc, withColumnFallback } from '@/api/supabaseClient';
 import { buildDiscrepancyRows, summarizeDiscrepancies, filterRowsByDateRange } from './logic';
-import { toNumber, parseDate } from '@/lib/format';
-import { getStockStatus } from '@/features/inventory/logic';
+import { toNumber } from '@/lib/format';
 import { LOW_STOCK_THRESHOLD } from '@/lib/labels';
 import { ORDER_STATUS } from '@/features/orders/logic';
+import { getInventorySummary, listStockByStatus } from '@/features/inventory/api';
 
 export const dashboardQueryKey = () => ['dashboard'];
 export const reportsQueryKey = (params = {}) => ['reports', params];
 export const discrepancyQueryKey = (orderId) => ['reports', 'discrepancies', orderId];
 
-const startOfTodayIso = () => {
-  const date = new Date();
-  date.setHours(0, 0, 0, 0);
-  return date.toISOString();
-};
-
-/** مخزون مُلخّص: يُستخدم للوحة التحكم وتقرير المخزون. */
+/** مخزون مُلخّص: يُستخدم لتقرير المخزون (يحتاج الصفوف نفسها للعرض). */
 const readInventoryRows = async () => {
   try {
     const rows = await selectAllRows(VIEWS.Inventory, { order: 'item_number' });
@@ -44,83 +38,84 @@ const readInventoryRows = async () => {
   }
 };
 
-/** صفوف إنجاز الطلبات (صف واحد لكل طلب) — لا تُنزّل بنود الطلبات كلها. */
-const readFulfillmentRows = async () => {
-  try {
-    const rows = await selectAllRows(VIEWS.OrderFulfillment, { order: '-order_date' });
-    return rows.map((row) => ({
-      ...row,
-      ordered_quantity: toNumber(row.ordered_quantity),
-      received_quantity: toNumber(row.received_quantity),
-      remaining_quantity: toNumber(row.remaining_quantity),
-      total_amount: toNumber(row.total_amount),
-    }));
-  } catch {
-    const rows = await selectAllRows(TABLES.PurchaseOrder, { order: '-order_date' });
-    return rows.map((row) => ({
-      ...row,
-      ordered_quantity: 0,
-      received_quantity: 0,
-      remaining_quantity: 0,
-      total_amount: toNumber(row.total_amount),
-    }));
-  }
+const OVERDUE_DAYS = 20;
+
+/** مسار بديل لإحصاءات الطلبات عند غياب دالة التجميع. */
+const fallbackPurchaseStats = async () => {
+  const [total, pending, partial, completed, cancelled, items] = await Promise.all([
+    db.entities.PurchaseOrder.count(),
+    db.entities.PurchaseOrder.count({ status: 'pending' }),
+    db.entities.PurchaseOrder.count({ status: 'partial' }),
+    db.entities.PurchaseOrder.count({ status: 'completed' }),
+    db.entities.PurchaseOrder.count({ status: 'cancelled' }),
+    selectAllRows(TABLES.PurchaseOrderItem, { columns: 'quantity_ordered, quantity_received' }),
+  ]);
+
+  return {
+    orders: {
+      total_orders: total,
+      pending_orders: pending,
+      partial_orders: partial,
+      completed_orders: completed,
+      cancelled_orders: cancelled,
+      open_orders: pending + partial,
+      overdue_orders: 0,
+    },
+    ordered_quantity: items.reduce((sum, row) => sum + toNumber(row.quantity_ordered), 0),
+    received_quantity: items.reduce((sum, row) => sum + toNumber(row.quantity_received), 0),
+    receipts_today: 0,
+    receipts_total: 0,
+  };
 };
 
+const toNumberSafe = (value) => toNumber(value);
+
 export const getDashboardData = async () => {
-  const todayIso = startOfTodayIso();
+  const overdueDate = new Date();
+  overdueDate.setDate(overdueDate.getDate() - OVERDUE_DAYS);
+  const overdueIso = overdueDate.toISOString().slice(0, 10);
 
-  const [totalOrders, openOrdersCount, receiptsToday, recentOrders, recentReceipts, inventoryRows, fulfillmentRows] =
-    await Promise.all([
-      db.entities.PurchaseOrder.count(),
-      db.entities.PurchaseOrder.count({ status: [ORDER_STATUS.PENDING, ORDER_STATUS.PARTIAL] }),
-      withColumnFallback(
-        (filters) => db.entities.GoodsReceipt.count(filters),
-        { receipt_date: { gte: todayIso }, voided_at: null },
-        'voided_at',
-      ),
-      db.entities.PurchaseOrder.list('-created_date', 5),
-      db.entities.GoodsReceipt.list('-created_date', 5),
-      readInventoryRows(),
-      readFulfillmentRows(),
-    ]);
+  // طلبات قليلة ومتوازية: دالتا تجميع على الخادم + قائمتان قصيرتان + قائمة المتأخرة.
+  const [purchaseStatsRaw, inventoryStatsRaw, recentOrders, recentReceipts, overduePage] = await Promise.all([
+    callRpc('get_purchase_stats', { p_overdue_days: OVERDUE_DAYS }).catch(() => null),
+    callRpc('get_inventory_stats', { p_low_threshold: LOW_STOCK_THRESHOLD }).catch(() => null),
+    db.entities.PurchaseOrder.list('-created_date', 5),
+    db.entities.GoodsReceipt.list('-created_date', 5),
+    selectRows(VIEWS.OrderFulfillment, {
+      filters: { status: [ORDER_STATUS.PENDING, ORDER_STATUS.PARTIAL], order_date: { lt: overdueIso } },
+      pageSize: 20,
+      order: 'order_date',
+    }).catch(() => ({ rows: [] })),
+  ]);
 
-  const overdueLimit = new Date();
-  overdueLimit.setDate(overdueLimit.getDate() - 20);
+  const purchaseStats = purchaseStatsRaw ?? (await fallbackPurchaseStats());
+  const inventoryStats = inventoryStatsRaw ?? (await getInventorySummary());
 
-  const openFulfillments = fulfillmentRows.filter(
-    (row) => row.status === ORDER_STATUS.PENDING || row.status === ORDER_STATUS.PARTIAL,
-  );
+  const orders = purchaseStats.orders ?? {};
+  const orderedQuantity = toNumberSafe(purchaseStats.ordered_quantity);
+  const receivedQuantity = toNumberSafe(purchaseStats.received_quantity);
 
-  const overdueOrders = openFulfillments.filter((row) => {
-    const orderDate = parseDate(row.order_date);
-    return orderDate ? orderDate < overdueLimit : false;
-  });
-
-  const orderedQuantity = fulfillmentRows.reduce((sum, row) => sum + row.ordered_quantity, 0);
-  const receivedQuantity = fulfillmentRows.reduce((sum, row) => sum + row.received_quantity, 0);
-
-  const statusData = Object.values(ORDER_STATUS)
-    .map((status) => ({ status, value: fulfillmentRows.filter((row) => row.status === status).length }))
-    .filter((entry) => entry.value > 0);
+  const statusData = [
+    { status: ORDER_STATUS.PENDING, value: toNumberSafe(orders.pending_orders) },
+    { status: ORDER_STATUS.PARTIAL, value: toNumberSafe(orders.partial_orders) },
+    { status: ORDER_STATUS.COMPLETED, value: toNumberSafe(orders.completed_orders) },
+    { status: ORDER_STATUS.CANCELLED, value: toNumberSafe(orders.cancelled_orders) },
+  ].filter((entry) => entry.value > 0);
 
   return {
     stats: {
-      totalOrders,
-      openOrders: openOrdersCount,
-      receiptsToday,
-      totalItems: inventoryRows.length,
-      inventoryValue: inventoryRows.reduce((sum, row) => sum + row.stock_value, 0),
-      lowStockItems: inventoryRows.filter(
-        (row) => getStockStatus(row.available_stock, LOW_STOCK_THRESHOLD) === 'low',
-      ).length,
-      outOfStockItems: inventoryRows.filter(
-        (row) => getStockStatus(row.available_stock, LOW_STOCK_THRESHOLD) === 'out',
-      ).length,
+      totalOrders: toNumberSafe(orders.total_orders),
+      openOrders: toNumberSafe(orders.open_orders),
+      receiptsToday: toNumberSafe(purchaseStats.receipts_today),
+      totalItems: toNumberSafe(inventoryStats.itemsCount ?? inventoryStats.items_count),
+      inventoryValue: toNumberSafe(inventoryStats.totalValue ?? inventoryStats.total_value),
+      lowStockItems: toNumberSafe(inventoryStats.lowStockCount ?? inventoryStats.low_count),
+      outOfStockItems: toNumberSafe(inventoryStats.outOfStockCount ?? inventoryStats.out_count),
+      negativeItems: toNumberSafe(inventoryStats.negativeCount ?? inventoryStats.negative_count),
     },
     recentOrders,
     recentReceipts: recentReceipts.filter((receipt) => !receipt.voided_at),
-    overdueOrders,
+    overdueOrders: overduePage.rows ?? [],
     insights: {
       statusData,
       orderedQuantity,
@@ -131,7 +126,7 @@ export const getDashboardData = async () => {
 };
 
 /** تقرير إذونات الاستلام مع بنوده (يُفلتر على الخادم حسب الفترة). */
-export const getReceiptsReport = async ({ from = '', to = '', limit = 200 } = {}) => {
+export const getReceiptsReport = async ({ from = '', to = '', limit = 60 } = {}) => {
   const filters = {
     ...(from || to ? { receipt_date: { gte: from || undefined, lte: to ? `${to}T23:59:59` : undefined } } : {}),
     voided_at: null,
@@ -159,10 +154,10 @@ export const getReceiptsReport = async ({ from = '', to = '', limit = 200 } = {}
 
 export const getInventoryReport = readInventoryRows;
 
-export const getNegativeStockItems = async () =>
-  (await readInventoryRows())
-    .filter((row) => getStockStatus(row.available_stock, LOW_STOCK_THRESHOLD) === 'negative')
-    .sort((left, right) => left.available_stock - right.available_stock);
+export const getNegativeStockItems = async () => {
+  const rows = await listStockByStatus('negative', { limit: 200 });
+  return rows.sort((left, right) => left.available_stock - right.available_stock);
+};
 
 /** فروقات الموردين لطلب واحد (أو لكل الطلبات). */
 export const getSupplierDiscrepancies = async (orderId = null) => {

@@ -61,6 +61,8 @@ supabase db push          # يطبّق كل الترحيلات غير المُط
 | `recalculate_pending_stock` | — | إعادة حساب مخزون الطلبات لكل الأصناف |
 | `recalculate_purchase_order_status` | `(order_id)` | إعادة حساب حالة طلب |
 | `recalculate_all_order_statuses` | — | إعادة حساب حالات كل الطلبات |
+| `get_inventory_stats` | `(low_threshold)` | إحصاء المخزون (عدد/قيمة/منخفض/غير متوفر/سالب) في طلب واحد |
+| `get_purchase_stats` | `(overdue_days)` | إحصاء الطلبات (الحالات/المتأخرة/الكميات/إذونات اليوم) في طلب واحد |
 
 ## رموز الأخطاء المرفوعة من الدوال
 

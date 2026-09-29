@@ -22,7 +22,7 @@ export const useListParams = ({ initialPageSize = DEFAULT_PAGE_SIZE, initialStat
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState(initialStatus);
 
-  const debouncedSearch = useDebouncedValue(search, 350);
+  const debouncedSearch = useDebouncedValue(search, 250);
 
   // أي تغيير في الفلاتر يعيدنا للصفحة الأولى.
   useEffect(() => {
