@@ -6,6 +6,7 @@ import {
   incrementDraftQuantity,
   summarizeReceiptDraft,
   toReceiptPayload,
+  toReceiptUpdatePayload,
   updateDraftQuantity,
 } from './logic.js';
 
@@ -60,4 +61,14 @@ test('summarizeReceiptDraft يرصد الزيادة والإجمالي', () => {
 test('toReceiptPayload يستبعد الصفوف بدون كمية', () => {
   const rows = updateDraftQuantity(buildReceiptDraft(ORDER_ITEMS), 0, 3);
   assert.deepEqual(toReceiptPayload(rows), [{ order_item_id: 'oi-1', quantity_received: 3 }]);
+});
+
+test('toReceiptUpdatePayload يستبعد البنود التي أصبحت كميتها صفرًا', () => {
+  assert.deepEqual(
+    toReceiptUpdatePayload([
+      { id: 'ri-1', quantity_received: 3 },
+      { id: 'ri-2', quantity_received: 4, quantity_to_receive: 0 },
+    ]),
+    [{ id: 'ri-1', quantity_received: 3 }],
+  );
 });

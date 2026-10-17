@@ -7,7 +7,7 @@ import { toNumber } from '@/lib/format';
 import { generateReceiptNumber } from '@/lib/documentNumbers';
 import { allocateReceiptQuantity, computeAverageCost } from '@/features/inventory/logic';
 import { computeOrderStatus } from '@/features/orders/logic';
-import { toReceiptPayload } from './logic';
+import { toReceiptPayload, toReceiptUpdatePayload } from './logic';
 
 export const receiptsQueryKey = (params = {}) => ['receipts', params];
 export const receiptDetailQueryKey = (id) => ['receipt', id];
@@ -171,10 +171,7 @@ export const createGoodsReceipt = async ({ orderId, receipt, rows, actorName = '
 };
 
 export const updateGoodsReceipt = async ({ receiptId, receipt, rows, actorName = '' }) => {
-  const items = (rows || []).map((row) => ({
-    id: row.id,
-    quantity_received: toNumber(row.quantity_to_receive ?? row.quantity_received),
-  }));
+  const items = toReceiptUpdatePayload(rows);
 
   if (await isStockRpcAvailable()) {
     const result = await callRpc('update_goods_receipt', {
@@ -189,14 +186,20 @@ export const updateGoodsReceipt = async ({ receiptId, receipt, rows, actorName =
   let total = 0;
   for (const row of rows) {
     const nextQuantity = toNumber(row.quantity_to_receive);
+    if (nextQuantity < 0) throw new Error('INVALID_QUANTITY');
+
     const previousQuantity = toNumber(row.quantity_received);
     const delta = nextQuantity - previousQuantity;
     const unitCost = toNumber(row.unit_cost);
 
-    await db.entities.GoodsReceiptItem.update(row.id, {
-      quantity_received: nextQuantity,
-      total_cost: nextQuantity * unitCost,
-    });
+    if (nextQuantity === 0) {
+      await db.entities.GoodsReceiptItem.delete(row.id);
+    } else {
+      await db.entities.GoodsReceiptItem.update(row.id, {
+        quantity_received: nextQuantity,
+        total_cost: nextQuantity * unitCost,
+      });
+    }
 
     if (delta !== 0) {
       const [item] = await db.entities.Item.filter({ id: row.item_id });
@@ -282,4 +285,3 @@ export const voidGoodsReceipt = async ({ receiptId, reason = '' }) => {
 
   return { id: receiptId, voided: true, usedRpc: false };
 };
-

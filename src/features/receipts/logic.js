@@ -66,3 +66,11 @@ export const toReceiptPayload = (rows = []) =>
       order_item_id: row.order_item_id,
       quantity_received: toNumber(row.quantity_to_receive),
     }));
+
+export const toReceiptUpdatePayload = (rows = []) =>
+  (rows || [])
+    .map((row) => ({
+      id: row.id,
+      quantity_received: toNumber(row.quantity_to_receive ?? row.quantity_received),
+    }))
+    .filter((row) => row.quantity_received !== 0);
