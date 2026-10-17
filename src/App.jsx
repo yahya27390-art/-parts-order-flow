@@ -25,7 +25,7 @@ const PageLoader = () => (
 );
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
+  const { user, isAuthenticated, isLoadingAuth, isLoadingPublicSettings, authError } = useAuth();
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -40,20 +40,20 @@ const AuthenticatedApp = () => {
   if (authError) {
     if (authError.type === 'user_not_registered' || authError.type === 'user_not_active') {
       return <UserNotRegisteredError message={authError.message} />;
-    } else if (authError.type === 'auth_required') {
-      return <Login />;
     } else if (authError.type === 'configuration_missing') {
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6" dir="rtl">
           <div className="max-w-lg rounded-2xl bg-white p-8 text-center shadow-sm">
             <h1 className="text-xl font-bold text-slate-900">إعدادات قاعدة البيانات غير مكتملة</h1>
-            <p className="mt-3 text-slate-600">
-              أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY إلى GitHub Actions Secrets ثم أعد تشغيل النشر.
-            </p>
           </div>
         </div>
       );
     }
+  }
+
+  // STRICT ACCESS GATE: Any visitor from any browser must login first before opening the system
+  if (!isAuthenticated || !user) {
+    return <Login />;
   }
 
   // Render the main app
